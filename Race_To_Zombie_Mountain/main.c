@@ -24,6 +24,12 @@
 #define MAX_SPEED			10
 #define MAX_SPEED_OFFROAD	3
 
+// Input keys
+#define INPUT_MOVE_LEFT		'a'
+#define INPUT_MOVE_RIGHT	'd'
+#define INPUT_ACCELERATE	'w'		
+#define INPUT_DECELERATE	's'
+
 // Define the image representing the player's car as well as the sprite
 char * car_image =
 	"   /\\   "
@@ -97,7 +103,7 @@ void add_road_section(int x, int y, int type) {
 }
 
 /**
- * Starts the gma
+ * Starts the game
  **/
 void setup_game_state() {
 	// Set up the road
@@ -145,11 +151,72 @@ void change_state(int new_state) {
 }
 
 /**
+ * Updates the position of the car depending on what movement key was pressed
+ **/
+void handle_movement_input(int key) {
+	int dx = 0;
+
+	switch(key) {
+		case INPUT_MOVE_LEFT:
+			dx--;
+			break;
+		case INPUT_MOVE_RIGHT:
+			dx++;
+			break;
+		default:
+			break;
+	}
+
+	sprite_move(player, dx, 0);
+}
+
+/**
+ * Updates the speed of the car depending on the speed change key that was pressed
+ **/
+void handle_speed_input(int key) {
+	// The change in speed
+	int dv = 0;
+
+	switch(key) {
+		case INPUT_ACCELERATE:
+			dv++;
+			break;
+		case INPUT_DECELERATE:
+			dv--;
+			break;
+	}
+
+	speed += dv;
+}
+
+/**
+ * Gets a character from the input buffer and checks if it is valid. If it is, the appropriate 
+ * function will be called to handle that input.
+ **/ 
+void handle_input() {
+	int key = get_char();
+
+	// Check if there's any input waiting to be processed
+	if(key >= 0) {
+		switch(key) {
+			case INPUT_MOVE_LEFT:
+			case INPUT_MOVE_RIGHT:
+				handle_movement_input(key);
+				break;
+			case INPUT_ACCELERATE:
+			case INPUT_DECELERATE:
+				handle_speed_input(key);
+				break;
+		}
+	}
+}
+
+/**
  * Code that updates the logic of the game relevant to the Start state
  **/
 void update_start_screen() {
 	// If the user presses any key, start the game
-	if(get_char() > 0) {
+	if(get_char() >= 0) {
 		change_state(GAME_SCREEN);
 	}
 }
@@ -158,6 +225,8 @@ void update_start_screen() {
  * Code that updates the logic of the game relevant to the Game state
  **/
 void update_game_screen() {
+	handle_input();
+
 	if(MAX_SPEED - speed + 2 < speed_ctr) {
 		even_stripe = !even_stripe;
 		speed_ctr = 0;
