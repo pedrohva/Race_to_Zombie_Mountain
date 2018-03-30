@@ -7,6 +7,9 @@
 // Define the border character as a full stop (.)
 #define BORDER_CHAR	46
 
+// The minimum width of the dashboard
+#define DASHBOARD_SIZE	20
+
 // Define the player car's details
 #define PLAYER_WIDTH	8
 #define PLAYER_HEIGHT	5
@@ -58,6 +61,17 @@ int *road;
 // The array which will hold the x coordinate of the road sections
 int *road_x_coords;
 
+// The system time in the user's computer that the game started (game screen not start menu)
+double game_start_time;
+// A tick counter that decides if enough ground has been travelled to cover 1 meter
+int distance_counter;
+// The distance in meters travelled since the start of the game
+int distance_travelled;
+
+// The x-coordinate of the border of the dashboard
+int dashboard_x;
+char dashboard_border_char = '/';
+
 /**
  * Holds information regarding what screen the player should be seeing right now. The state should
  * only be changed through the function change_state()
@@ -103,13 +117,13 @@ void add_road_section(int x, int y, int type) {
 }
 
 /**
- * Starts the game
+ * Decides on the width and length of the road and adds the proper graphics to the array which
+ * holds the road information
  **/
-void setup_game_state() {
-	// Set up the road
+void setup_road() {
 	road_length = screen_height() - 2;	// There should be borders at the top and bottom of the screen
 	road_width = (PLAYER_WIDTH * 2) + (PLAYER_WIDTH * 0.5);
-	int road_x = (screen_width() - road_width - 1) * 0.5;
+	int road_x = ((screen_width() - road_width - 1 + DASHBOARD_SIZE) * 0.5);
 	even_stripe = true;
 	road = malloc(road_length * sizeof(int));
 	road_x_coords = malloc(road_length * sizeof(int));
@@ -118,17 +132,35 @@ void setup_game_state() {
 	for(int i=0; i<road_length; i++) {
 		add_road_section(road_x, i + 1, ROAD_STRAIGHT);
 	}
+}
+
+/**
+ * Resets and setups the dashboard to display in a variety of window sizes
+ */
+void setup_dashboard() {
+	dashboard_x = DASHBOARD_SIZE;
+}
+
+/**
+ * Starts the game
+ **/
+void setup_game_state() {
+	setup_dashboard();
+	setup_road();
 
 	// Setup the car at the bottom of the screen, middle of road
-	// TODO change the car location to be in middle of road instead of screen
-	int x = (screen_width() - PLAYER_WIDTH) / 2;
 	int y = screen_height() - PLAYER_HEIGHT - 2;
+	int x = (road_width / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
 
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, car_image);
 
 	// Initialise the speed settings
-	speed = 1;
+	speed = 0;
 	speed_ctr = 0;
+
+	game_start_time = get_current_time();
+	distance_counter = 0;
+	distance_travelled = 0;
 }
 
 /**
@@ -186,7 +218,9 @@ void handle_speed_input(int key) {
 			break;
 	}
 
-	speed += dv;
+	if(((speed + dv) <= MAX_SPEED) && (speed + dv) >= 0) {
+		speed += dv;
+	}
 }
 
 /**
@@ -227,8 +261,16 @@ void update_start_screen() {
 void update_game_screen() {
 	handle_input();
 
+	// Decides when to update the game (if enough time has speed depending on the speed)
 	if(MAX_SPEED - speed + 2 < speed_ctr) {
 		even_stripe = !even_stripe;
+
+		distance_counter++;
+		// Updates the distance if enough ticks have passed to cover 1 meter
+		if(distance_counter > 5) {
+			distance_travelled++;
+			distance_counter = 0;
+		}
 		speed_ctr = 0;
 	}
 }
@@ -251,13 +293,13 @@ void update() {
 }
 
 /**
- * Find the x coordinate needed to center a text in the terminal
+ * Find the x coordinate needed to center a text in the terminal and then print it
  **/
-int center_text_x_coord(char * text) {
+void draw_center_text(char * text, int y) {
 	int text_size = strlen(text);
 	int x = (screen_width()/2) - (text_size/2) - 1;
 
-	return x;
+	draw_string(x,y,text);
 }
 
 /**
@@ -274,22 +316,37 @@ void draw_borders() {
  * Draw the start screen
  **/
 void draw_start_screen() {
-	char * title = "Race to Zombie Mountain";
-	int title_x = center_text_x_coord(title);
-	int title_y = 3;
-	draw_string(title_x,title_y,title);
-
-	char * author = "Pedro Alves - n9424342";
-	int author_x = center_text_x_coord(author);
-	int author_y = screen_height() - 2;
-	draw_string(author_x,author_y,author);
+	draw_center_text("Race to Zombie Mountain", 3);
+	draw_center_text("Pedro Alves - n9424342", screen_height() - 2);
 }
 
 /**
- * Draw the game screen
+ * Draw the borders and all information that we want displayed on the dashboard
  **/
-void draw_game_screen() {
-	// Draw the road
+void draw_dashboard() {
+	 // Draw the borders
+	 for(int y=1; y<screen_width()-1; y++) {
+		 draw_char(dashboard_x, y, dashboard_border_char);
+	 }
+
+	 // Draw the speed stat
+	draw_string(2, 4, "Speed");
+	draw_int(11, 4, speed);
+
+	// Draw the time elapsed since game started
+	draw_string(2, 3, "Time");
+	draw_double(11, 3, get_current_time() - game_start_time);
+
+	// The distance travelled since the start of the game
+	draw_string(2, 2, "Distance");
+	draw_int(11, 2, distance_travelled);
+}
+
+/**
+ * Draws the road by using the graphic information from the 'road' array. Also decides where to draw
+ * the center stripes
+ **/
+void draw_road() {
 	for(int i=0; i<road_length; i++) {
 		draw_char(road_x_coords[i], i + 1, get_road_image(road[i]));
 		draw_char(road_x_coords[i] + road_length, i + 1, get_road_image(road[i]));
@@ -299,6 +356,14 @@ void draw_game_screen() {
 			draw_char(road_x_coords[i] + (road_length * 0.5), i + 1, get_road_image(road[i]));
 		}
 	}
+}
+
+/**
+ * Draw the game screen
+ **/
+void draw_game_screen() {
+	draw_dashboard();
+	draw_road();
 
 	sprite_draw(player);
 }
