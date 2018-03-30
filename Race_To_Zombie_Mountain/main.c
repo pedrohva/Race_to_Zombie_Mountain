@@ -92,6 +92,36 @@ void purge_input_buffer() {
 }
 
 /**
+ * Check if the car is offroad
+ **/
+bool car_offroad() {
+	if(sprite_x(player) < road_x_coords[(int)sprite_y(player)]) {
+		return true;
+	}
+
+	if((sprite_x(player) + (PLAYER_WIDTH/2)) > (road_x_coords[(int)sprite_y(player)]+road_width)) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Checks if the coordinates given are in bounds of the game area (excludes the dashboard from the area)
+ **/
+bool in_bounds(int x, int y) {
+	if((x <= DASHBOARD_SIZE) || (x >= screen_width()-2)) {
+		return false;
+	}
+
+	if((y <= 1) || (y >= screen_height()-2)) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
  * Get the right image for the road depending on its type
  **/
 char get_road_image(int type) {
@@ -199,7 +229,22 @@ void handle_movement_input(int key) {
 			break;
 	}
 
-	sprite_move(player, dx, 0);
+	// Check if the car will be in bounds
+	// Check bounded by left border
+	int newX = sprite_x(player) + dx;
+	if(!in_bounds(newX, sprite_y(player))) {
+		dx = 0;
+	}
+	// Check bounded by right border
+	newX += PLAYER_WIDTH/2 + 2;
+	if(!in_bounds(newX, sprite_y(player))) {
+		dx = 0;
+	}
+
+	// Check if car is stationary and should be allowed to move
+	if(speed > 0) {
+		sprite_move(player, dx, 0);
+	}
 }
 
 /**
@@ -218,7 +263,14 @@ void handle_speed_input(int key) {
 			break;
 	}
 
-	if(((speed + dv) <= MAX_SPEED) && (speed + dv) >= 0) {
+	// Decide on the max speed the car can reach
+	int max_speed = MAX_SPEED;
+	if(car_offroad()) {
+		max_speed = MAX_SPEED_OFFROAD;
+	}
+
+	// Check if the speed will fall in bounds
+	if(((speed + dv) <= max_speed) && (speed + dv) >= 0) {
 		speed += dv;
 	}
 }
@@ -262,7 +314,7 @@ void update_game_screen() {
 	handle_input();
 
 	// Decides when to update the game (if enough time has speed depending on the speed)
-	if(MAX_SPEED - speed + 2 < speed_ctr) {
+	if((MAX_SPEED - speed + 2 < speed_ctr) && (speed > 0)) {
 		even_stripe = !even_stripe;
 
 		distance_counter++;
@@ -272,6 +324,11 @@ void update_game_screen() {
 			distance_counter = 0;
 		}
 		speed_ctr = 0;
+	}
+
+	// If the car is offroad, set its speed to the maximum offroad speed
+	if(car_offroad() && (speed > MAX_SPEED_OFFROAD)) {
+		speed = MAX_SPEED_OFFROAD;
 	}
 }
 
@@ -340,6 +397,11 @@ void draw_dashboard() {
 	// The distance travelled since the start of the game
 	draw_string(2, 2, "Distance");
 	draw_int(11, 2, distance_travelled);
+
+	// Draw warning stating that the car is offroad
+	if(car_offroad()) {
+		draw_string(2, 6, "OFFROAD");
+	}
 }
 
 /**
