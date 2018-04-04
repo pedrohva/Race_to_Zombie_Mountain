@@ -201,6 +201,18 @@ bool in_bounds(int x, int y) {
 }
 
 /**
+ * Add the player to the middle of the road again
+ **/
+void reset_player_location() {
+	// Setup the car at the bottom of the screen, middle of road
+	int y = screen_height() - PLAYER_HEIGHT - 2;
+	int x = (road_width / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
+
+	player->x = x;
+	player->y = y;
+}
+
+/**
  * Get the right image for the road depending on its type
  **/
 char get_road_image(int type) {
@@ -534,6 +546,12 @@ void update_game_screen() {
 		if(distance_counter > 5) {
 			distance_travelled++;
 			distance_counter = 0;
+		}
+
+		// Check if the car has collided
+		if(check_collision(player)) {
+			speed = 0;
+			reset_player_location();
 		}
 
 		update_terrain();
