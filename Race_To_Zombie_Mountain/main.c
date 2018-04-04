@@ -19,6 +19,11 @@
 #define ROAD_RIGHT		2
 #define ROAD_LEFT		3
 
+// The types of terrain
+#define NUM_TERRAIN_TYPES	2
+#define TERRAIN_BOULDER		0
+#define TERRAIN_LOGS 		1
+
 // The interval of the speed timer and loop timer
 #define SPEED_INTERVAL	87
 #define LOOP_INTERVAL	17
@@ -42,6 +47,28 @@ char * car_image =
 	"  ----  ";
 
 sprite_id player;
+
+// Define the images and their sizes which represent terrain
+// Boulders
+char *terrain_boulder_image =
+	" o00o "
+	"o0000o"
+	" o00o ";
+int terrain_boulder_width = 6;
+int terrain_boulder_height = 3;
+// Logs
+char *terrain_logs_image =
+	"========"
+	"========";
+int terrain_logs_width = 8;
+int terrain_logs_height = 2; 
+
+// The maximum number of terrain obstacles that can appear at once
+int max_terrain_obs;
+// An array which contains all of the terrain obstacles
+sprite_id *terrain;
+// The maximum number of hazards that can appear at once
+int max_hazards;
 
 // The speed of the player. This controls how long it takes for 
 int speed;
@@ -92,6 +119,23 @@ void purge_input_buffer() {
 }
 
 /**
+ * Checks if the given coordinates are offroad. Takes width into account
+ **/
+bool offroad(int x, int y, int width) {
+	// Check if to the left of the road
+	if((x+width-1) < road_x_coords[y]) {
+		return true;
+	}
+
+	// Check if to the right of the road
+	if(x > (road_x_coords[y]+road_width-1)) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * Check if the car is offroad
  **/
 bool car_offroad() {
@@ -99,11 +143,46 @@ bool car_offroad() {
 		return true;
 	}
 
-	if((sprite_x(player) + (PLAYER_WIDTH/2)) > (road_x_coords[(int)sprite_y(player)]+road_width)) {
+	if((sprite_x(player) + PLAYER_WIDTH - 1) > (road_x_coords[(int)sprite_y(player)] + road_width)) {
 		return true;
 	}
 
 	return false;
+}
+
+/**
+ * Checks if there is any terrain colliding with the sprite
+ **/
+bool check_collision(sprite_id sprite) {
+	bool collided = false;
+
+	// The coordinates of the sprite (used to improve readability as the coords should not change in this function)
+	int x = sprite_x(sprite);
+	int y = sprite_y(sprite);
+	int width = sprite_width(sprite);
+	int height = sprite_height(sprite);
+
+	// Iterate through the terrain to see if there was a collision
+	for(int i=0; i<max_terrain_obs; i++) {
+		// Check if the terrain has already been created (needed in order to check for collision when first creating 
+		// the terrain objects, see create_terrain())
+		if(terrain[i] != NULL) {
+			int terrain_x = sprite_x(terrain[i]);
+			int terrain_y = sprite_y(terrain[i]);
+			int terrain_width = sprite_width(terrain[i]);
+			int terrain_height = sprite_height(terrain[i]);
+
+			// Check if there is colllision in the x-axis
+			if(!((x + width < terrain_x) || (x > terrain_x + terrain_width))) {
+				// Check if there is collision in the y-axis
+				if(!((y + height < terrain_y) || (y > terrain_y + terrain_height))) {
+					collided = true;
+				}
+			}
+		}
+	}
+
+	return collided;
 }
 
 /**
@@ -165,6 +244,124 @@ void setup_road() {
 }
 
 /**
+ * Moves a terrain to the top of the screen and changes the terrain type
+ **/
+void terrain_reset(int index) {
+	// Choose a new terrain type
+	int terrain_type = rand() % 2;
+	char* terrain_image = "";
+	int terrain_width = 0;
+	int terrain_height = 0;
+	switch(terrain_type) {
+		case TERRAIN_BOULDER:
+			terrain_image = terrain_boulder_image;
+			terrain_width = terrain_boulder_width;
+			terrain_height = terrain_boulder_height;
+			break;
+		case TERRAIN_LOGS:
+			terrain_image = terrain_logs_image;
+			terrain_width = terrain_logs_width;
+			terrain_height = terrain_logs_height;
+			break;
+	}
+
+	// Check if we'll place the terrain on the left or right side of the road
+	bool left = rand() % 2;
+	int x = -1;
+	if(left) {
+		int min_x = DASHBOARD_SIZE + 1;
+		int max_x = road_x_coords[0] - terrain_width - 1;
+		x = rand() % (max_x + 1 - min_x) + min_x;
+	} else {
+		int min_x = road_x_coords[0] + road_width + 1;
+		int max_x = screen_width() - 2 - terrain_width;
+		x = rand() % (max_x + 1 - min_x) + min_x;
+	}
+
+	int y = 0 - terrain_width;
+
+	// Create a temporary sprite of the new terrain to check for collision
+	sprite_id temp_sprite = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
+	// We won't reset the terrain unless there will be no collision (try again next tick)
+	if(!check_collision(temp_sprite)) {
+		// Reset the terrain
+		terrain[index]->x = x;
+		terrain[index]->y = y;
+		terrain[index]->width = terrain_width;
+		terrain[index]->height = terrain_height;
+		sprite_set_image(terrain[index], terrain_image);
+		sprite_turn_to(terrain[index],0,1);
+	}
+	sprite_destroy(temp_sprite);
+}
+
+/**
+ * Creates a piece of terrain at a valid location
+ **/
+void terrain_create(int index) {
+	// Choose the type of terrain to place
+	int terrain_type = rand() % 2;
+	char* terrain_image = "";
+	int terrain_width = 0;
+	int terrain_height = 0;
+
+	switch(terrain_type) {
+		case TERRAIN_BOULDER:
+			terrain_image = terrain_boulder_image;
+			terrain_width = terrain_boulder_width;
+			terrain_height = terrain_boulder_height;
+			break;
+		case TERRAIN_LOGS:
+			terrain_image = terrain_logs_image;
+			terrain_width = terrain_logs_width;
+			terrain_height = terrain_logs_height;
+			break;
+	}
+
+	// Keep searching for new coordinates until there is no collision with other terrain
+	bool valid_location = false;
+	while(!valid_location) {
+		int y = (rand()%(screen_height()-2-terrain_height)) + 2;
+
+		// Check if we'll place the terrain on the left or right side of the road
+		bool left = rand() % 2;
+		int x = -1;
+		if(left) {
+			int min_x = DASHBOARD_SIZE + 1;
+			int max_x = road_x_coords[y] - terrain_width - 1;
+			x = rand() % (max_x + 1 - min_x) + min_x;
+		} else {
+			int min_x = road_x_coords[y] + road_width + 1;
+			int max_x = screen_width() - 2 - terrain_width;
+			x = rand() % (max_x + 1 - min_x) + min_x;
+		}
+
+		// Create a temporary sprite of the new terrain to check for collision
+		sprite_id temp_sprite = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
+		if(!check_collision(temp_sprite)) {
+			// Create the sprite of the terrain
+			terrain[index] = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
+			sprite_turn_to(terrain[index], 0, 1);
+			valid_location = true;
+		}
+		sprite_destroy(temp_sprite);
+	}
+}
+
+/**
+ * Creates all terrain that will appear on the game screen
+ **/
+void setup_terrain() {
+	// Decide on maximum number of terrain obstacles that can appear
+	max_terrain_obs = 10;
+	terrain = malloc(max_terrain_obs * sizeof(sprite_id));
+
+	for(int i=0; i<max_terrain_obs; i++) {
+		terrain_create(i);
+	}
+}
+
+/**
  * Resets and setups the dashboard to display in a variety of window sizes
  */
 void setup_dashboard() {
@@ -177,11 +374,11 @@ void setup_dashboard() {
 void setup_game_state() {
 	setup_dashboard();
 	setup_road();
+	setup_terrain();
 
 	// Setup the car at the bottom of the screen, middle of road
 	int y = screen_height() - PLAYER_HEIGHT - 2;
 	int x = (road_width / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
-
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, car_image);
 
 	// Initialise the speed settings
@@ -308,6 +505,21 @@ void update_start_screen() {
 }
 
 /**
+ * Step the terrain so that it scrolls and create new terrain when the old one goes out of bounds
+ **/
+void update_terrain() {
+	for(int i=0; i<max_terrain_obs; i++) {
+		sprite_step(terrain[i]);
+
+		// Check if any terrain went out of bounds
+		if(sprite_y(terrain[i]) > screen_height()) {
+			// Create a new terrain 
+			terrain_reset(i);
+		}
+	}
+}
+
+/**
  * Code that updates the logic of the game relevant to the Game state
  **/
 void update_game_screen() {
@@ -323,6 +535,9 @@ void update_game_screen() {
 			distance_travelled++;
 			distance_counter = 0;
 		}
+
+		update_terrain();
+
 		speed_ctr = 0;
 	}
 
@@ -411,12 +626,21 @@ void draw_dashboard() {
 void draw_road() {
 	for(int i=0; i<road_length; i++) {
 		draw_char(road_x_coords[i], i + 1, get_road_image(road[i]));
-		draw_char(road_x_coords[i] + road_length, i + 1, get_road_image(road[i]));
+		draw_char(road_x_coords[i] + road_width, i + 1, get_road_image(road[i]));
 		if(((i+1) % 2 == 0) && (even_stripe)) {
-			draw_char(road_x_coords[i] + (road_length * 0.5), i + 1, get_road_image(road[i]));
+			draw_char(road_x_coords[i] + (road_width * 0.5), i + 1, get_road_image(road[i]));
 		} else if(((i+1) % 2 != 0) && !even_stripe) {
-			draw_char(road_x_coords[i] + (road_length * 0.5), i + 1, get_road_image(road[i]));
+			draw_char(road_x_coords[i] + (road_width * 0.5), i + 1, get_road_image(road[i]));
 		}
+	}
+}
+
+/**
+ * Draw all of the terrain sprites
+ **/
+void draw_terrain() {
+	for(int i=0; i<max_terrain_obs; i++) {
+		sprite_draw(terrain[i]);
 	}
 }
 
@@ -426,6 +650,7 @@ void draw_road() {
 void draw_game_screen() {
 	draw_dashboard();
 	draw_road();
+	draw_terrain();
 
 	sprite_draw(player);
 }
@@ -436,7 +661,6 @@ void draw_game_screen() {
 void draw() {
 	clear_screen();
 
-	draw_borders();
 	// Draw the current screen
 	switch(game_state) {
 		case START_SCREEN:
@@ -449,6 +673,7 @@ void draw() {
 			break;
 	}
 
+	draw_borders();
 	show_screen();
 }
 
@@ -459,6 +684,9 @@ int main( void ) {
 	setup_screen();
 
 	change_state(START_SCREEN);
+
+	// Seed our random number generator 
+	srand(100);
 
 	// The timer to check how long it takes to execute one iteration of game loop. 
 	// Set the interval to 17 so the game runs at ~60 fps
