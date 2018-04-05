@@ -14,15 +14,23 @@
 #define PLAYER_WIDTH	8
 #define PLAYER_HEIGHT	5
 
+// The width of the road
+#define ROAD_WIDTH  	20
+
 // Define the direction the road is turning.
 #define ROAD_STRAIGHT	1
 #define ROAD_RIGHT		2
 #define ROAD_LEFT		3
 
 // The types of terrain
-#define NUM_TERRAIN_TYPES	2
+#define NUM_TERRAIN_TYPES	3
 #define TERRAIN_BOULDER		0
 #define TERRAIN_LOGS 		1
+#define TERRAIN_GRAVE		2
+
+// The types of hazards
+#define NUM_HAZARD_TYPES	1
+#define HAZARD_SPIKES		0
 
 // The interval of the speed timer and loop timer
 #define SPEED_INTERVAL	87
@@ -61,14 +69,32 @@ char *terrain_logs_image =
 	"========"
 	"========";
 int terrain_logs_width = 8;
-int terrain_logs_height = 2; 
+int terrain_logs_height = 2;
+// Grave
+char *terrain_grave_image =
+	" ___ "
+	"|RIP|"
+	"|   |"
+	"-----"; 
+int terrain_grave_width = 5;
+int terrain_grave_height = 4;
 
 // The maximum number of terrain obstacles that can appear at once
 int max_terrain_obs;
 // An array which contains all of the terrain obstacles
 sprite_id *terrain;
+
+// Define the images and their sizes which represent hazards
+// Spikes
+char *hazard_spikes_image =
+	"*****";
+int hazard_spikes_width = 5;
+int hazard_spikes_height = 1;
+
 // The maximum number of hazards that can appear at once
 int max_hazards;
+// An array which contains all of the hazard obstacles
+sprite_id *hazards;
 
 // The speed of the player. This controls how long it takes for 
 int speed;
@@ -79,8 +105,6 @@ int speed_ctr;
 
 // How many units the road stretches from the bottom of the screen to the top
 int road_length;
-// How many units the road stretches horizontally from its left to the its right boundary
-int road_width;
 // Decides if the odd or even on the y coord road sections will contain a middle stripe
 bool even_stripe;
 // The array which will hold all of the road sections
@@ -110,6 +134,10 @@ enum GameScreens {
 	EXIT_SCREEN
 } game_state;
 
+// Function declarations
+void hazard_reset(int index);
+bool check_collision(sprite_id sprite, bool invulnerable);
+
 /**
  * Removes all keyboard input sitting in the buffer in order to prevent unexpected commands when switching states
  **/
@@ -128,7 +156,7 @@ bool offroad(int x, int y, int width) {
 	}
 
 	// Check if to the right of the road
-	if(x > (road_x_coords[y]+road_width-1)) {
+	if(x > (road_x_coords[y]+ROAD_WIDTH-1)) {
 		return true;
 	}
 
@@ -143,7 +171,7 @@ bool car_offroad() {
 		return true;
 	}
 
-	if((sprite_x(player) + PLAYER_WIDTH - 1) > (road_x_coords[(int)sprite_y(player)] + road_width)) {
+	if((sprite_x(player) + PLAYER_WIDTH - 1) > (road_x_coords[(int)sprite_y(player)] + ROAD_WIDTH)) {
 		return true;
 	}
 
@@ -151,9 +179,10 @@ bool car_offroad() {
 }
 
 /**
- * Checks if there is any terrain colliding with the sprite
+ * Checks if there is any terrain colliding with the sprite. If invulnerable, clear the hazard on the road so that the car can
+ * spawn
  **/
-bool check_collision(sprite_id sprite) {
+bool check_collision(sprite_id sprite, bool invulnerable) {
 	bool collided = false;
 
 	// The coordinates of the sprite (used to improve readability as the coords should not change in this function)
@@ -173,10 +202,33 @@ bool check_collision(sprite_id sprite) {
 			int terrain_height = sprite_height(terrain[i]);
 
 			// Check if there is colllision in the x-axis
-			if(!((x + width < terrain_x) || (x > terrain_x + terrain_width))) {
+			if(!((x + width <= terrain_x) || (x >= terrain_x + terrain_width))) {
 				// Check if there is collision in the y-axis
 				if(!((y + height < terrain_y) || (y > terrain_y + terrain_height))) {
 					collided = true;
+				}
+			}
+		}
+	}
+
+	// Iterate through the hazards to see if there was a collision
+	for(int i=0; i<max_hazards; i++) {
+		// Check if the terrain has already been created (needed in order to check for collision when first creating 
+		// the terrain objects, see create_terrain())
+		if(hazards[i] != NULL) {
+			int hazard_x = sprite_x(hazards[i]);
+			int hazard_y = sprite_y(hazards[i]);
+			int hazard_width = sprite_width(hazards[i]);
+			int hazard_height = sprite_height(hazards[i]);
+
+			// Check if there is colllision in the x-axis
+			if(!((x + width <= hazard_x) || (x >= hazard_x + hazard_width))) {
+				// Check if there is collision in the y-axis
+				if(!((y + height < hazard_y) || (y > hazard_y + hazard_height))) {
+					collided = true;
+					if(invulnerable) {
+						hazard_reset(i);
+					}
 				}
 			}
 		}
@@ -206,10 +258,13 @@ bool in_bounds(int x, int y) {
 void reset_player_location() {
 	// Setup the car at the bottom of the screen, middle of road
 	int y = screen_height() - PLAYER_HEIGHT - 2;
-	int x = (road_width / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
+	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
 
 	player->x = x;
 	player->y = y;
+
+	// Check for collision and clear the hazard on the road if there is any
+	check_collision(player, true);
 }
 
 /**
@@ -243,8 +298,7 @@ void add_road_section(int x, int y, int type) {
  **/
 void setup_road() {
 	road_length = screen_height() - 2;	// There should be borders at the top and bottom of the screen
-	road_width = (PLAYER_WIDTH * 2) + (PLAYER_WIDTH * 0.5);
-	int road_x = ((screen_width() - road_width - 1 + DASHBOARD_SIZE) * 0.5);
+	int road_x = ((screen_width() - ROAD_WIDTH - 1 + DASHBOARD_SIZE) * 0.5);
 	even_stripe = true;
 	road = malloc(road_length * sizeof(int));
 	road_x_coords = malloc(road_length * sizeof(int));
@@ -260,7 +314,7 @@ void setup_road() {
  **/
 void terrain_reset(int index) {
 	// Choose a new terrain type
-	int terrain_type = rand() % 2;
+	int terrain_type = rand() % NUM_TERRAIN_TYPES;
 	char* terrain_image = "";
 	int terrain_width = 0;
 	int terrain_height = 0;
@@ -275,6 +329,11 @@ void terrain_reset(int index) {
 			terrain_width = terrain_logs_width;
 			terrain_height = terrain_logs_height;
 			break;
+		case TERRAIN_GRAVE:
+			terrain_image = terrain_grave_image;
+			terrain_width = terrain_grave_width;
+			terrain_height= terrain_grave_height;
+			break;
 	}
 
 	// Check if we'll place the terrain on the left or right side of the road
@@ -285,17 +344,17 @@ void terrain_reset(int index) {
 		int max_x = road_x_coords[0] - terrain_width - 1;
 		x = rand() % (max_x + 1 - min_x) + min_x;
 	} else {
-		int min_x = road_x_coords[0] + road_width + 1;
+		int min_x = road_x_coords[0] + ROAD_WIDTH + 1;
 		int max_x = screen_width() - 2 - terrain_width;
 		x = rand() % (max_x + 1 - min_x) + min_x;
 	}
 
-	int y = 0 - terrain_width;
+	int y = 0 - terrain_height;
 
 	// Create a temporary sprite of the new terrain to check for collision
 	sprite_id temp_sprite = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
 	// We won't reset the terrain unless there will be no collision (try again next tick)
-	if(!check_collision(temp_sprite)) {
+	if(!check_collision(temp_sprite,false)) {
 		// Reset the terrain
 		terrain[index]->x = x;
 		terrain[index]->y = y;
@@ -308,11 +367,49 @@ void terrain_reset(int index) {
 }
 
 /**
- * Creates a piece of terrain at a valid location
+ * Moves a hazard to the top of the screen and changes the hazard type
+ **/
+void hazard_reset(int index) {
+	// Choose the type of hazard to place
+	int hazard_type = rand() % NUM_HAZARD_TYPES;
+	char* hazard_image = "";
+	int hazard_width = 0;
+	int hazard_height = 0;
+
+	switch(hazard_type) {
+		case HAZARD_SPIKES:
+			hazard_image = hazard_spikes_image;
+			hazard_width = hazard_spikes_width;
+			hazard_height = hazard_spikes_height;
+			break;
+	}
+
+
+	int y = 0 - hazard_height;
+	int min_x = road_x_coords[0] + 1;
+	int max_x = road_x_coords[0] + ROAD_WIDTH - 1 - hazard_width;
+	int x = rand() % (max_x + 1 - min_x) + min_x;
+
+	// Create a temporary sprite of the new hazard to check for collision
+	sprite_id temp_sprite = sprite_create(x, y, hazard_width, hazard_height, hazard_image);
+	if(!check_collision(temp_sprite,false)) {
+		// Reset the hazard
+		hazards[index]->x = x;
+		hazards[index]->y = y;
+		hazards[index]->width = hazard_width;
+		hazards[index]->height = hazard_height;
+		sprite_set_image(hazards[index], hazard_image);
+		sprite_turn_to(hazards[index], 0, 1);
+	}
+	sprite_destroy(temp_sprite);
+}
+
+/**
+ * Creates a piece of terrain at a valid location (anywhere outside the road)
  **/
 void terrain_create(int index) {
 	// Choose the type of terrain to place
-	int terrain_type = rand() % 2;
+	int terrain_type = rand() % NUM_TERRAIN_TYPES;
 	char* terrain_image = "";
 	int terrain_width = 0;
 	int terrain_height = 0;
@@ -327,6 +424,11 @@ void terrain_create(int index) {
 			terrain_image = terrain_logs_image;
 			terrain_width = terrain_logs_width;
 			terrain_height = terrain_logs_height;
+			break;
+		case TERRAIN_GRAVE:
+			terrain_image = terrain_grave_image;
+			terrain_width = terrain_grave_width;
+			terrain_height= terrain_grave_height;
 			break;
 	}
 
@@ -343,17 +445,55 @@ void terrain_create(int index) {
 			int max_x = road_x_coords[y] - terrain_width - 1;
 			x = rand() % (max_x + 1 - min_x) + min_x;
 		} else {
-			int min_x = road_x_coords[y] + road_width + 1;
+			int min_x = road_x_coords[y] + ROAD_WIDTH + 1;
 			int max_x = screen_width() - 2 - terrain_width;
 			x = rand() % (max_x + 1 - min_x) + min_x;
 		}
 
 		// Create a temporary sprite of the new terrain to check for collision
 		sprite_id temp_sprite = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
-		if(!check_collision(temp_sprite)) {
+		if(!check_collision(temp_sprite,false)) {
 			// Create the sprite of the terrain
 			terrain[index] = sprite_create(x, y, terrain_width, terrain_height, terrain_image);
 			sprite_turn_to(terrain[index], 0, 1);
+			valid_location = true;
+		}
+		sprite_destroy(temp_sprite);
+	}
+}
+
+/**
+ * Creates a piece of hazard at a valid location (anywhere in the road)
+ **/
+void hazard_create(int index) {
+	// Choose the type of hazard to place
+	int hazard_type = rand() % NUM_HAZARD_TYPES;
+	char* hazard_image = "";
+	int hazard_width = 0;
+	int hazard_height = 0;
+
+	switch(hazard_type) {
+		case HAZARD_SPIKES:
+			hazard_image = hazard_spikes_image;
+			hazard_width = hazard_spikes_width;
+			hazard_height = hazard_spikes_height;
+			break;
+	}
+
+	// Keep searching for new coordinates until there is no collision with other hazards
+	bool valid_location = false;
+	while(!valid_location) {
+		int y = (rand()%((screen_height()/2)-hazard_height)) + 2;
+		int min_x = road_x_coords[y] + 1;
+		int max_x = road_x_coords[y] + ROAD_WIDTH - 1 - hazard_width;
+		int x = rand() % (max_x + 1 - min_x) + min_x;
+
+		// Create a temporary sprite of the new hazard to check for collision
+		sprite_id temp_sprite = sprite_create(x, y, hazard_width, hazard_height, hazard_image);
+		if(!check_collision(temp_sprite,false)) {
+			// Create the sprite of the terrain
+			hazards[index] = sprite_create(x, y, hazard_width, hazard_height, hazard_image);
+			sprite_turn_to(hazards[index], 0, 1);
 			valid_location = true;
 		}
 		sprite_destroy(temp_sprite);
@@ -374,6 +514,19 @@ void setup_terrain() {
 }
 
 /**
+ * Creates all hazards that will appear on the game screen
+ **/
+void setup_hazards() {
+	// Decide on maximum number of terrain obstacles that can appear
+	max_hazards = 3;
+	hazards = malloc(max_hazards * sizeof(sprite_id));
+
+	for(int i=0; i<max_hazards; i++) {
+		hazard_create(i);
+	}
+}
+
+/**
  * Resets and setups the dashboard to display in a variety of window sizes
  */
 void setup_dashboard() {
@@ -387,10 +540,11 @@ void setup_game_state() {
 	setup_dashboard();
 	setup_road();
 	setup_terrain();
+	setup_hazards();
 
 	// Setup the car at the bottom of the screen, middle of road
 	int y = screen_height() - PLAYER_HEIGHT - 2;
-	int x = (road_width / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
+	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, car_image);
 
 	// Initialise the speed settings
@@ -449,6 +603,13 @@ void handle_movement_input(int key) {
 	if(!in_bounds(newX, sprite_y(player))) {
 		dx = 0;
 	}
+
+	// Create a temporary sprite to check if car will collide
+	sprite_id temp_sprite = sprite_create(sprite_x(player)+dx, sprite_y(player), PLAYER_WIDTH, PLAYER_HEIGHT, car_image);
+	if(check_collision(temp_sprite,false)) {
+		dx = 0;
+	}
+	sprite_destroy(temp_sprite);
 
 	// Check if car is stationary and should be allowed to move
 	if(speed > 0) {
@@ -532,6 +693,21 @@ void update_terrain() {
 }
 
 /**
+ * Step the hazards so that it scrolls and create new hazards when the old one goes out of bounds
+ **/
+void update_hazards() {
+	for(int i=0; i<max_hazards; i++) {
+		sprite_step(hazards[i]);
+
+		// Check if any hazard went out of bounds
+		if(sprite_y(hazards[i]) > screen_height()) {
+			// Create a new hazard
+			hazard_reset(i);
+		}
+	}
+}
+
+/**
  * Code that updates the logic of the game relevant to the Game state
  **/
 void update_game_screen() {
@@ -549,12 +725,13 @@ void update_game_screen() {
 		}
 
 		// Check if the car has collided
-		if(check_collision(player)) {
+		if(check_collision(player,false)) {
 			speed = 0;
 			reset_player_location();
 		}
 
 		update_terrain();
+		update_hazards();
 
 		speed_ctr = 0;
 	}
@@ -644,11 +821,11 @@ void draw_dashboard() {
 void draw_road() {
 	for(int i=0; i<road_length; i++) {
 		draw_char(road_x_coords[i], i + 1, get_road_image(road[i]));
-		draw_char(road_x_coords[i] + road_width, i + 1, get_road_image(road[i]));
+		draw_char(road_x_coords[i] + ROAD_WIDTH, i + 1, get_road_image(road[i]));
 		if(((i+1) % 2 == 0) && (even_stripe)) {
-			draw_char(road_x_coords[i] + (road_width * 0.5), i + 1, get_road_image(road[i]));
+			draw_char(road_x_coords[i] + (ROAD_WIDTH * 0.5), i + 1, get_road_image(road[i]));
 		} else if(((i+1) % 2 != 0) && !even_stripe) {
-			draw_char(road_x_coords[i] + (road_width * 0.5), i + 1, get_road_image(road[i]));
+			draw_char(road_x_coords[i] + (ROAD_WIDTH * 0.5), i + 1, get_road_image(road[i]));
 		}
 	}
 }
@@ -663,12 +840,22 @@ void draw_terrain() {
 }
 
 /**
+ * Draw all of the hazard sprites
+ **/
+void draw_hazards() {
+	for(int i=0; i<max_hazards; i++) {
+		sprite_draw(hazards[i]);
+	}
+}
+
+/**
  * Draw the game screen
  **/
 void draw_game_screen() {
 	draw_dashboard();
 	draw_road();
 	draw_terrain();
+	draw_hazards();
 
 	sprite_draw(player);
 }
