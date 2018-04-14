@@ -25,12 +25,13 @@
 // The types of terrain
 #define NUM_TERRAIN_TYPES	3
 #define TERRAIN_BOULDER		0
-#define TERRAIN_LOGS 		1
+#define TERRAIN_TREE 		1
 #define TERRAIN_GRAVE		2
 
 // The types of hazards
-#define NUM_HAZARD_TYPES	1
+#define NUM_HAZARD_TYPES	2
 #define HAZARD_SPIKES		0
+#define HAZARD_TRIANGLE		1
 
 // The interval of the speed timer and loop timer
 #define SPEED_INTERVAL	87
@@ -65,11 +66,14 @@ char *terrain_boulder_image =
 int terrain_boulder_width = 6;
 int terrain_boulder_height = 3;
 // Logs
-char *terrain_logs_image =
-	"========"
-	"========";
-int terrain_logs_width = 8;
-int terrain_logs_height = 2;
+char *terrain_tree_image =
+	"  ,,,  "
+	" ,,,,, "
+	",,,,,,,"
+	"  | |  "
+	"  | |  ";
+int terrain_tree_width = 7;
+int terrain_tree_height = 5;
 // Grave
 char *terrain_grave_image =
 	" ___ "
@@ -87,9 +91,17 @@ sprite_id *terrain;
 // Define the images and their sizes which represent hazards
 // Spikes
 char *hazard_spikes_image =
-	"*****";
-int hazard_spikes_width = 5;
-int hazard_spikes_height = 1;
+	"|-----|"
+	"|-----|";
+int hazard_spikes_width = 7;
+int hazard_spikes_height = 2;
+// Triangle
+char *hazard_triangle_image =
+	" . "
+	"/!\\"
+	"---";
+int hazard_triangle_width = 3;
+int hazard_triangle_height = 3;
 
 // The maximum number of hazards that can appear at once
 int max_hazards;
@@ -324,10 +336,10 @@ void terrain_reset(int index) {
 			terrain_width = terrain_boulder_width;
 			terrain_height = terrain_boulder_height;
 			break;
-		case TERRAIN_LOGS:
-			terrain_image = terrain_logs_image;
-			terrain_width = terrain_logs_width;
-			terrain_height = terrain_logs_height;
+		case TERRAIN_TREE:
+			terrain_image = terrain_tree_image;
+			terrain_width = terrain_tree_width;
+			terrain_height = terrain_tree_height;
 			break;
 		case TERRAIN_GRAVE:
 			terrain_image = terrain_grave_image;
@@ -382,10 +394,15 @@ void hazard_reset(int index) {
 			hazard_width = hazard_spikes_width;
 			hazard_height = hazard_spikes_height;
 			break;
+		case HAZARD_TRIANGLE:
+			hazard_image = hazard_triangle_image;
+			hazard_width = hazard_triangle_width;
+			hazard_height = hazard_triangle_height;
+			break;
 	}
 
 
-	int y = 0 - hazard_height;
+	int y = 0 - hazard_height - rand() % 20;
 	int min_x = road_x_coords[0] + 1;
 	int max_x = road_x_coords[0] + ROAD_WIDTH - 1 - hazard_width;
 	int x = rand() % (max_x + 1 - min_x) + min_x;
@@ -420,10 +437,10 @@ void terrain_create(int index) {
 			terrain_width = terrain_boulder_width;
 			terrain_height = terrain_boulder_height;
 			break;
-		case TERRAIN_LOGS:
-			terrain_image = terrain_logs_image;
-			terrain_width = terrain_logs_width;
-			terrain_height = terrain_logs_height;
+		case TERRAIN_TREE:
+			terrain_image = terrain_tree_image;
+			terrain_width = terrain_tree_width;
+			terrain_height = terrain_tree_height;
 			break;
 		case TERRAIN_GRAVE:
 			terrain_image = terrain_grave_image;
@@ -478,6 +495,11 @@ void hazard_create(int index) {
 			hazard_width = hazard_spikes_width;
 			hazard_height = hazard_spikes_height;
 			break;
+		case HAZARD_TRIANGLE:
+			hazard_image = hazard_triangle_image;
+			hazard_width = hazard_triangle_width;
+			hazard_height = hazard_triangle_height;
+			break;
 	}
 
 	// Keep searching for new coordinates until there is no collision with other hazards
@@ -505,7 +527,7 @@ void hazard_create(int index) {
  **/
 void setup_terrain() {
 	// Decide on maximum number of terrain obstacles that can appear
-	max_terrain_obs = 10;
+	max_terrain_obs = 6;
 	terrain = malloc(max_terrain_obs * sizeof(sprite_id));
 
 	for(int i=0; i<max_terrain_obs; i++) {
@@ -712,9 +734,11 @@ void update_hazards() {
  **/
 void update_game_screen() {
 	handle_input();
+	// How fast the screen scrolls (can be negative). Higher value the faster
+	int speed_rate = 2;
 
 	// Decides when to update the game (if enough time has speed depending on the speed)
-	if((MAX_SPEED - speed + 2 < speed_ctr) && (speed > 0)) {
+	if((MAX_SPEED - speed - speed_rate < speed_ctr) && (speed > 0)) {
 		even_stripe = !even_stripe;
 
 		distance_counter++;
