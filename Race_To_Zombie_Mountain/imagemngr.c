@@ -147,3 +147,14 @@ char* get_fuel_station_image(int* width, int* height) {
 
     return image;
 }
+
+/**
+ * Get the image representing the finish line.
+ * IMPORTANT: Must be the same width as the road + 1
+ **/
+char* get_finish_line_image() {
+    char* image = 
+        "!///////////////////!";
+
+    return image;
+}

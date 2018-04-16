@@ -26,6 +26,12 @@
 #define MAX_SPEED			10
 #define MAX_SPEED_OFFROAD	3
 
+// Maximum amount of fuel the car has
+#define MAX_FUEL			200
+
+// The distance to the finish line (the number that appears in the distance stat is 1/5 of this one)
+#define FINISH_LINE_DIST	20
+
 // Input keys
 #define INPUT_MOVE_LEFT		'a'
 #define INPUT_MOVE_RIGHT	'd'
@@ -90,6 +96,9 @@ timer_id refuel_timer;
 
 // The condition of the car (represented as a percentage)
 int car_condition;
+
+// The sprite representing the finish line
+sprite_id finish_line;
 
 /**
  * Holds information regarding what screen the player should be seeing right now. The state should

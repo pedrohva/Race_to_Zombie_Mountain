@@ -94,7 +94,7 @@ void refuel() {
 		// Check if player has remained still for 3 seconds
 		if(timer_expired(refuel_timer)) {
 			refuelling = false;
-			fuel = 200;
+			fuel = MAX_FUEL;
 			speed = 1;
 			destroy_timer(refuel_timer);
 		}
@@ -401,6 +401,9 @@ void setup_hazards() {
  * random distance above the screen
  **/
 void setup_fuel_station() {
+	fuel = MAX_FUEL;
+	refuelling = false;
+
 	int station_width = 0;
 	int station_height = 0;
 	char* station_image = get_fuel_station_image(&station_width, &station_height);
@@ -422,6 +425,20 @@ void setup_fuel_station() {
 }
 
 /**
+ * Create a finish line a certain distance above the screen
+ **/
+void setup_finish_line() {
+	int width = ROAD_WIDTH + 1;
+	char* image = get_finish_line_image();
+
+	// Set a certain distance above the car
+	int y = sprite_y(player) - FINISH_LINE_DIST;
+
+	finish_line = sprite_create(road_x_coords[0], y, width, 1, image);
+	sprite_turn_to(finish_line, 0, 1);
+}
+
+/**
  * Resets and setups the dashboard to display in a variety of window sizes
  */
 void setup_dashboard() {
@@ -434,20 +451,17 @@ void setup_dashboard() {
 void setup_game_state() {
 	setup_dashboard();
 	setup_road();
-
-	// Give the player a full fuel tank
-	fuel = 200;
-	refuelling = false;
 	setup_fuel_station();
-
 	setup_terrain();
 	setup_hazards();
-
+	
 	// Setup the car at the bottom of the screen, middle of road
 	int y = screen_height() - PLAYER_HEIGHT - 2;
 	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
 	car_condition = 100;
+
+	setup_finish_line();
 
 	// Initialise the speed settings
 	speed = 0;
@@ -667,6 +681,7 @@ void update_game_screen() {
 		// Check if the car has collided
 		if(check_collision(player,false)) {
 			speed = 0;
+			fuel = MAX_FUEL;
 			car_condition -= 10;
 			if(car_condition <= 0) {
 				change_state(GAME_OVER_SCREEN);
@@ -677,6 +692,7 @@ void update_game_screen() {
 		update_fuel_station();
 		update_terrain();
 		update_hazards();
+		sprite_step(finish_line);
 
 		speed_ctr = 0;
 	}
@@ -687,6 +703,11 @@ void update_game_screen() {
 	// If the car is offroad, set its speed to the maximum offroad speed
 	if(car_offroad() && (speed > MAX_SPEED_OFFROAD)) {
 		speed = MAX_SPEED_OFFROAD;
+	}
+	
+	// Check if the player has won the game
+	if((sprite_y(player) + sprite_height(player)) < sprite_y(finish_line)) {
+		change_state(GAME_OVER_SCREEN);
 	}
 }
 
@@ -746,23 +767,23 @@ void draw_dashboard() {
 
 	// The distance travelled since the start of the game
 	draw_string(2, 2, "Distance");
-	draw_int(11, 2, distance_travelled);
+	draw_int(12, 2, distance_travelled);
 
 	// Draw the time elapsed since game started
 	draw_string(2, 3, "Time");
-	draw_double(11, 3, get_current_time() - game_start_time);
+	draw_double(12, 3, get_current_time() - game_start_time);
 
 	// Draw the speed stat
 	draw_string(2, 4, "Speed");
-	draw_int(11, 4, speed);
+	draw_int(12, 4, speed);
 
 	// Draw the fuel stat
 	draw_string(2,5, "Fuel");
-	draw_int(11, 5, fuel);
+	draw_int(12, 5, fuel);
 
 	// Draw the condition stat
 	draw_string(2,6,"Condition");
-	draw_int(11,6,car_condition);
+	draw_int(12,6,car_condition);
 
 	// Draw warning stating that the car is offroad
 	if(car_offroad()) {
@@ -815,6 +836,7 @@ void draw_hazards() {
 void draw_game_screen() {
 	draw_dashboard();
 	draw_road();
+	sprite_draw(finish_line);
 	draw_terrain();
 	draw_hazards();
 
