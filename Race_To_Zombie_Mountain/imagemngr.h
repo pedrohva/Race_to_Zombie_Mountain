@@ -20,8 +20,18 @@
 #define HAZARD_SPIKES		0
 #define HAZARD_TRIANGLE		1
 
+// Define the direction the road is turning.
+#define ROAD_STRAIGHT	1
+#define ROAD_RIGHT		2
+#define ROAD_LEFT		3
+
 // Setup all of the images and properties to the arrays
 void imagemngr_init();
 char* get_image(int id, int type, int* width, int* height);
+char* get_car_image();
+char get_road_image(int type);
+char* get_fuel_station_image(int* width, int* height);
+
+char dashboard_border_char;
 
 #endif

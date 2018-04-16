@@ -78,6 +78,8 @@ void hazards_init() {
 void imagemngr_init() {
     terrain_init();
     hazards_init();
+
+    dashboard_border_char = '/';
 }
 
 /**
@@ -95,4 +97,55 @@ char* get_image(int id, int type, int* width, int* height) {
     }
 
     return "";
+}
+
+/**
+ * Get the image representing the car
+ **/
+char* get_car_image() {
+    // Define the image representing the player's car
+    char* car_image =
+        "   /\\   "
+        "[]-||-[]"
+        "   ||   "
+        "[]-||-[]"
+        "  ----  ";
+
+    return car_image;
+}
+
+/**
+ * Get the right image for the road depending on its type
+ **/
+char get_road_image(int type) {
+	char image = ' ';
+
+	switch(type) {
+		case ROAD_STRAIGHT:
+			image = '|';
+			break;
+		default:
+			break;
+	}
+
+	return image;
+}
+
+/**
+ * Return the image and properties of the fuel station image
+ **/
+char* get_fuel_station_image(int* width, int* height) {
+    char* image = 
+        "--------"
+        "|      |"
+        "|      |"
+        "| FUEL |"
+        "|      |"
+        "|      |"
+        "--------";
+    
+    *width = 8;
+    *height = 7;
+
+    return image;
 }
