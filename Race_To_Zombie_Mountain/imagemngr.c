@@ -132,20 +132,18 @@ char get_road_image(int type) {
 }
 
 /**
- * Return the image and properties of the fuel station image
+ * Return the image and properties of the fuel station image. 
  **/
 char* get_fuel_station_image(int* width, int* height) {
     char* image = 
         "--------"
         "|      |"
-        "|      |"
         "| FUEL |"
-        "|      |"
         "|      |"
         "--------";
     
     *width = 8;
-    *height = 7;
+    *height = 5;
 
     return image;
 }

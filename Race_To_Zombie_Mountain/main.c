@@ -1,99 +1,4 @@
-#include <stdlib.h>
-#include <string.h>
-#include "cab202_graphics.h"
-#include "cab202_timers.h"
-#include "cab202_sprites.h"
-
-#include "imagemngr.h"
-
-// Define the border character as a full stop (.)
-#define BORDER_CHAR	46
-
-// The minimum width of the dashboard
-#define DASHBOARD_SIZE	20
-
-// The width of the road
-#define ROAD_WIDTH  	20
-
-// The interval of the speed timer and loop timer
-#define SPEED_INTERVAL	87
-#define LOOP_INTERVAL	17
-
-// The maximum speed the player can increase the car and thus the speed of updates in the game
-#define MAX_SPEED			10
-#define MAX_SPEED_OFFROAD	3
-
-// Input keys
-#define INPUT_MOVE_LEFT		'a'
-#define INPUT_MOVE_RIGHT	'd'
-#define INPUT_ACCELERATE	'w'		
-#define INPUT_DECELERATE	's'
-
-// The delay (in distance) of when the next fuel station appears (randomness can be added to this value
-// with the FUEL_STATION_VARIANCE constant)
-#define FUEL_STATION_DELAY_DIST	30
-// Determines the variance of where the fuel station appears above the screen (the smaller the value
-// the more frequent a fuel station will appear)
-#define FUEL_STATION_VARIANCE	30
-
-// The sprite representing the player
-sprite_id player;
-// The speed of the player. This controls how long it takes for 
-int speed;
-// The current fuel available to the player
-int fuel;
-
-// The maximum number of terrain obstacles that can appear at once
-int max_terrain_obs;
-// An array which contains all of the terrain obstacles
-sprite_id *terrain;
-
-// The maximum number of hazards that can appear at once
-int max_hazards;
-// An array which contains all of the hazard obstacles
-sprite_id *hazards;
-
-// A timer that controls how fast the game updates (thus setting the speed)
-timer_id speed_timer;
-// Helps count how many ticks have passed from the speed_timer to help decide if we should update
-int speed_ctr;
-
-// How many units the road stretches from the bottom of the screen to the top
-int road_length;
-// Decides if the odd or even on the y coord road sections will contain a middle stripe
-bool even_stripe;
-// The array which will hold all of the road sections
-int *road;
-// The array which will hold the x coordinate of the road sections
-int *road_x_coords;
-
-// The system time in the user's computer that the game started (game screen not start menu)
-double game_start_time;
-// A tick counter that decides if enough ground has been travelled to cover 1 meter
-int distance_counter;
-// The distance in meters travelled since the start of the game
-int distance_travelled;
-
-// The x-coordinate of the border of the dashboard
-int dashboard_x;
-
-// The sprite representing the fuel station
-sprite_id fuel_station;
-
-/**
- * Holds information regarding what screen the player should be seeing right now. The state should
- * only be changed through the function change_state()
- **/
-enum GameScreens {
-	START_SCREEN,
-	GAME_SCREEN,
-	GAME_OVER_SCREEN,
-	EXIT_SCREEN
-} game_state;
-
-// Function declarations
-void hazard_reset(int index);
-bool check_collision(sprite_id sprite, bool invulnerable);
+#include "zombiemountain.h"
 
 /**
  * Removes all keyboard input sitting in the buffer in order to prevent unexpected commands when switching states
@@ -143,6 +48,57 @@ bool car_offroad() {
 	}
 
 	return false;
+}
+
+/**
+ * Checks if the car is next to a fuel station while travelling below the specified speed. 
+ **/
+void check_refuel() {
+	bool valid_location = false;
+	// Check if the player is to the left of the fuel station
+	if((sprite_x(player) + sprite_width(player)) == sprite_x(fuel_station) && (sprite_y(fuel_station) == sprite_y(player))) {
+		valid_location = true;
+	}
+	// Check if the player is to the right of the fuel station
+	if((sprite_x(fuel_station) + sprite_width(fuel_station)) == sprite_x(player) && (sprite_y(fuel_station) == sprite_y(player))) {
+		valid_location = true;
+	}
+
+	bool ready_to_refuel = false;
+	// Check if the player is travelling below a speed of 2 in order to begin refuelling
+	if(valid_location) {
+		if(speed < 3) {
+			ready_to_refuel = true;
+		}
+	}
+
+	if(ready_to_refuel) {
+		refuelling = true;
+		refuel_timer = create_timer(3000);
+		speed = 0;
+	}
+}
+
+/**
+ * Refuels the car if possible making sure that the player has remained stationary for 3 seconds
+ **/
+void refuel() {
+	if(!refuelling) {
+		check_refuel();
+	} else {
+		// Cancel refuelling if the car starts moving again
+		if(speed > 0) {
+			refuelling = false;
+		}
+
+		// Check if player has remained still for 3 seconds
+		if(timer_expired(refuel_timer)) {
+			refuelling = false;
+			fuel = 200;
+			speed = 1;
+			destroy_timer(refuel_timer);
+		}
+	}
 }
 
 /**
@@ -454,7 +410,7 @@ void setup_fuel_station() {
 	if(left) {
 		x = road_x_coords[0] - station_width;
 	} else {
-		x = road_x_coords[0] + ROAD_WIDTH;
+		x = road_x_coords[0] + ROAD_WIDTH + 1;
 	}
 
 	fuel_station = sprite_create(x, y, station_width, station_height, station_image);
@@ -477,6 +433,7 @@ void setup_game_state() {
 
 	// Give the player a full fuel tank
 	fuel = 200;
+	refuelling = false;
 	setup_fuel_station();
 
 	setup_terrain();
@@ -494,6 +451,9 @@ void setup_game_state() {
 	game_start_time = get_current_time();
 	distance_counter = 0;
 	distance_travelled = 0;
+
+	// Start the speed timer
+	speed_timer = create_timer(SPEED_INTERVAL);
 }
 
 /**
@@ -664,7 +624,7 @@ void update_fuel_station() {
 		if(left) {
 			x = road_x_coords[0] - sprite_width(fuel_station);
 		} else {
-			x = road_x_coords[0] + ROAD_WIDTH;
+			x = road_x_coords[0] + ROAD_WIDTH + 1;
 		}
 
 		sprite_move_to(fuel_station, x, y);
@@ -676,6 +636,13 @@ void update_fuel_station() {
  **/
 void update_game_screen() {
 	handle_input();
+
+	// Update the speed counter. We also check if it would update while we pause the execution with
+	// the loop timer. Added 10 to the loop interval in case update and draw takes 17 ms to execute
+	if(speed_timer->milliseconds > (SPEED_INTERVAL - LOOP_INTERVAL - 10)) {
+		speed_ctr++;
+	}
+
 	// How fast the screen scrolls (can be negative). Higher value the faster
 	int speed_rate = 2;
 
@@ -704,6 +671,9 @@ void update_game_screen() {
 
 		speed_ctr = 0;
 	}
+
+	// Refuel the car if all criteria are met
+	refuel();
 
 	// If the car is offroad, set its speed to the maximum offroad speed
 	if(car_offroad() && (speed > MAX_SPEED_OFFROAD)) {
@@ -784,6 +754,11 @@ void draw_dashboard() {
 	// Draw warning stating that the car is offroad
 	if(car_offroad()) {
 		draw_string(2, 7, "OFFROAD");
+	}
+
+	// Draw warning saying we're refuelling
+	if(refuelling) {
+		draw_string(2, 8, "REFUELLING");
 	}
 }
 
@@ -874,19 +849,10 @@ int main( void ) {
 	// Set the interval to 17 so the game runs at ~60 fps
 	timer_id loop_timer = create_timer(LOOP_INTERVAL);
 
-	// Start the speed timer
-	speed_timer = create_timer(SPEED_INTERVAL);
-
 	// Start the main game loop
 	while(game_state != EXIT_SCREEN) {
 		update();
 		draw();
-
-		// Update the speed counter. We also check if it would update while we pause the execution with
-		// the loop timer. Added 10 to the loop interval in case update and draw takes 17 ms to execute
-		if(speed_timer->milliseconds > (SPEED_INTERVAL - LOOP_INTERVAL - 10)) {
-			speed_ctr++;
-		}
 
 		// Wait for a bit in order to not go above 20fps
 		while(!timer_expired(loop_timer)) { }	
