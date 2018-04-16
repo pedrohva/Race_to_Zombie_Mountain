@@ -88,6 +88,9 @@ bool refuelling;
 // A timer that is used to verify if the car remained next to a fuel station long enough to refuel
 timer_id refuel_timer;
 
+// The condition of the car (represented as a percentage)
+int car_condition;
+
 /**
  * Holds information regarding what screen the player should be seeing right now. The state should
  * only be changed through the function change_state()

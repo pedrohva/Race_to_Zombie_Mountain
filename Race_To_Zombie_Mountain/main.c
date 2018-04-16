@@ -162,6 +162,10 @@ bool check_collision(sprite_id sprite, bool invulnerable) {
 		// Check if there is collision in the y-axis
 		if(!((y + height < sprite_y(fuel_station)) || (y > sprite_y(fuel_station) + sprite_height(fuel_station)))) {
 			collided = true;
+			// Destroy the player
+			if(sprites_equal(sprite, player)) {
+				car_condition = 0;
+			}
 		}
 	}
 
@@ -443,6 +447,7 @@ void setup_game_state() {
 	int y = screen_height() - PLAYER_HEIGHT - 2;
 	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
+	car_condition = 100;
 
 	// Initialise the speed settings
 	speed = 0;
@@ -662,6 +667,10 @@ void update_game_screen() {
 		// Check if the car has collided
 		if(check_collision(player,false)) {
 			speed = 0;
+			car_condition -= 10;
+			if(car_condition <= 0) {
+				change_state(GAME_OVER_SCREEN);
+			}
 			reset_player_location();
 		}
 
@@ -751,14 +760,18 @@ void draw_dashboard() {
 	draw_string(2,5, "Fuel");
 	draw_int(11, 5, fuel);
 
+	// Draw the condition stat
+	draw_string(2,6,"Condition");
+	draw_int(11,6,car_condition);
+
 	// Draw warning stating that the car is offroad
 	if(car_offroad()) {
-		draw_string(2, 7, "OFFROAD");
+		draw_string(2, 8, "OFFROAD");
 	}
 
 	// Draw warning saying we're refuelling
 	if(refuelling) {
-		draw_string(2, 8, "REFUELLING");
+		draw_string(2, 9, "REFUELLING");
 	}
 }
 
@@ -810,6 +823,13 @@ void draw_game_screen() {
 }
 
 /**
+ * Draw the game over screen
+ **/
+void draw_game_over_screen() {
+	draw_center_text("GAME OVER", screen_height() / 2);
+}
+
+/**
  * Draw every visible entity of the game and all UI elements belonging to the current screen
  **/
 void draw() {
@@ -822,6 +842,10 @@ void draw() {
 			break;
 		case GAME_SCREEN:
 			draw_game_screen();
+			break;
+
+		case GAME_OVER_SCREEN:
+			draw_game_over_screen();
 			break;
 		default:
 			break;
