@@ -63,11 +63,6 @@ int max_hazards;
 // An array which contains all of the hazard obstacles
 sprite_id *hazards;
 
-// The maximum number of zombies that can appear at once
-int max_zombies;
-// An array which contains all of the zombie obstacles
-sprite_id *zombies;
-
 // A timer that controls how fast the game updates (thus setting the speed)
 timer_id speed_timer;
 // Helps count how many ticks have passed from the speed_timer to help decide if we should update

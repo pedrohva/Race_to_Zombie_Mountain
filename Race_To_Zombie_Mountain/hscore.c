@@ -16,10 +16,11 @@ void get_hscores() {
         hscore_scores[i] = 0;
     }
 
+    // We only want the top 100 scores, so don't record anything else if we're above that number
+    int counter = 0;
+
     // Get the highscore data if the file exists
     if(hscore_file != NULL) {
-        // We only want the top 100 scores, so don't record anything else if we're above that number
-        int counter = 0;
         // The data we want from each line
         char* name = malloc(sizeof(char) * (MAX_NAME_SIZE+1));
         int score;
@@ -35,6 +36,11 @@ void get_hscores() {
         }
 
         free(name);
+    } else {
+        // Add the game master as the score to beat
+        hscore_scores[counter] = 1000;
+        strcpy(hscore_names[counter], "GameMaster");
+        counter++;
     }
 
     fclose(hscore_file);
@@ -87,7 +93,7 @@ void save_scores() {
         }
         // Draw the score if it exists
         if(hscore_scores[i] > 0) {
-            draw_int(space + 18, y, hscore_scores[i]);
+            draw_int(space + 19, y, hscore_scores[i]);
         }
         // Move down a line
         y++;
@@ -109,19 +115,17 @@ bool check_new_hscore() {
         }
     }
 
+    // If score is 0, we don't have a high score
+    if(score == 0) {
+        return false;
+    }
+
     // Check if we have a new highscore
-    if((score > old_score) || (index < 99)) {
+    if((score > old_score) || (index < (MAX_SCORES-1))) {
         return true;
     } else {
         return false;
     }
-}
-
-/**
- * Get the user to input their name
- **/
-void get_username() {
-
 }
 
 /**
@@ -174,22 +178,4 @@ void process_hscore(char *name) {
         hscore_scores[index] = score;
         strcpy(hscore_names[index], name);
     }
-}
-
-/**
- * Draws the highscore screen that will be visible to the player
- **/
-void draw_highscore_screen() {
-    int text_size = strlen("HIGHSCORES");
-	int x = (screen_width()/2) - (text_size/2) - 1;
-
-	draw_string(x,2,"HIGHSCORES");
-    draw_hscores();
-}
-
-/**
- * Updates the highscore screen by allowing the player to either play the game again or quit
- **/
-void update_highscore_screen() {
-    
 }

@@ -4,7 +4,7 @@
 // The maximum number of highscores we'll display
 #define MAX_SCORES      100
 // The maximum size of names
-#define MAX_NAME_SIZE   10
+#define MAX_NAME_SIZE   12
 
 // The score the player has achieved
 int score;
@@ -49,5 +49,10 @@ bool check_new_hscore();
  * Saves all of the high score data from the arrays to a highscore file
  **/
 void save_scores();
+
+/**
+ * Reads the arrays containing the highscores and prints the information to the user
+ **/
+ void draw_hscores();
 
 #endif
