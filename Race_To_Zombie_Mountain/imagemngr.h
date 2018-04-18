@@ -32,6 +32,7 @@ char* get_car_image();
 char get_road_image(int type);
 char* get_fuel_station_image(int* width, int* height);
 char* get_finish_line_image();
+char* get_zombie_image(int* width, int* height);
 
 char dashboard_border_char;
 

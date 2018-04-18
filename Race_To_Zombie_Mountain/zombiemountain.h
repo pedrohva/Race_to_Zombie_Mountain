@@ -30,7 +30,7 @@
 #define MAX_FUEL			200
 
 // The distance to the finish line (the number that appears in the distance stat is 1/5 of this one)
-#define FINISH_LINE_DIST	20
+#define FINISH_LINE_DIST	500
 
 // Input keys
 #define INPUT_MOVE_LEFT		'a'
@@ -61,6 +61,11 @@ sprite_id *terrain;
 int max_hazards;
 // An array which contains all of the hazard obstacles
 sprite_id *hazards;
+
+// The maximum number of zombies that can appear at once
+int max_zombies;
+// An array which contains all of the zombie obstacles
+sprite_id *zombies;
 
 // A timer that controls how fast the game updates (thus setting the speed)
 timer_id speed_timer;

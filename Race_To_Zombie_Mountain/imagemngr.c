@@ -158,3 +158,18 @@ char* get_finish_line_image() {
 
     return image;
 }
+
+/**
+ * Get the image representing a zombie
+ **/
+char* get_zombie_image(int* width, int* height) {
+    char* image =
+        "(-) "
+        " \\--"
+        " |_ ";
+
+    *width = 4;
+    *height = 3;
+
+    return image;
+}

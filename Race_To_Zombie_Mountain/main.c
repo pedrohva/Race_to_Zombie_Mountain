@@ -14,6 +14,7 @@ void purge_input_buffer() {
 void free_memory() {
 	free(terrain);
 	free(hazards);
+	free(zombies);
 	free(road);
 	free(road_x_coords);
 }
@@ -152,6 +153,26 @@ bool check_collision(sprite_id sprite, bool invulnerable) {
 					if(invulnerable) {
 						hazard_reset(i);
 					}
+				}
+			}
+		}
+	}
+
+	// Check if there is any collision with zombies
+	for(int i=0; i<max_zombies; i++) {
+		// Check if the zombie has already been created (needed in order to check for collision when first creating 
+		// the zombie objects, see create_zombie())
+		if(zombies[i] != NULL) {
+			int zombie_x = sprite_x(zombies[i]);
+			int zombie_y = sprite_y(zombies[i]);
+			int zombie_width = sprite_width(zombies[i]);
+			int zombie_height = sprite_height(zombies[i]);
+
+			// Check if there is colllision in the x-axis
+			if(!((x + width <= zombie_x) || (x >= zombie_x + zombie_width))) {
+				// Check if there is collision in the y-axis
+				if(!((y + height < zombie_y) || (y > zombie_y + zombie_height))) {
+					collided = true;
 				}
 			}
 		}
@@ -301,6 +322,31 @@ void hazard_reset(int index) {
 }
 
 /**
+ * Move a zombie to the top of the screen
+ **/
+void zombie_reset(int index) {
+	int width = sprite_width(zombies[index]);
+	int height = sprite_height(zombies[index]);
+
+	// Move the hazard above the screen a random amount
+	int y = 0 - height - rand() % 25;
+
+	// Choose a x-coordinate anywhere in the playing area
+	int min_x = DASHBOARD_SIZE + 1;
+	int max_x = screen_width() - 2 - width;
+	int x = rand() % (max_x + 1 - min_x) + min_x;
+
+	// Create a temporary sprite of the new hazard to check for collision
+	sprite_id temp_sprite = sprite_create(x, y, width, height, zombies[index]->bitmap);
+	if(!check_collision(temp_sprite,false)) {
+		// Reset the hazard
+		sprite_move_to(zombies[index],x,y);
+		sprite_turn_to(zombies[index], 0, 1);
+	}
+	sprite_destroy(temp_sprite);
+}
+
+/**
  * Creates a piece of terrain at a valid location (anywhere outside the road)
  **/
 void terrain_create(int index) {
@@ -371,6 +417,36 @@ void hazard_create(int index) {
 }
 
 /**
+ * Create a zombie sprite and add it to the zombies array. Zombies can appear anywhere in the game 
+ * screen
+ **/
+void zombie_create(int index) {
+	// Get the sprite image details
+	int width = 0;
+	int height = 0;
+	char* image = get_zombie_image(&width, &height);
+
+	// Keep searching for new coordinates until there is no collision with other obstacles
+	bool valid_location = false;
+	while(!valid_location) {
+		int y = (rand()%((screen_height()/2)-height)) + 2;
+		int min_x = DASHBOARD_SIZE + 1;
+		int max_x = screen_width() - 2 - width;
+		int x = rand() % (max_x + 1 - min_x) + min_x;
+
+		// Create a temporary sprite of the new hazard to check for collision
+		sprite_id temp_sprite = sprite_create(x, y, width, height, image);
+		if(!check_collision(temp_sprite,false)) {
+			// Create the sprite of the obstacle
+			zombies[index] = sprite_create(x, y, width, height, image);
+			sprite_turn_to(zombies[index], 0, 1);
+			valid_location = true;
+		}
+		sprite_destroy(temp_sprite);
+	}
+}
+
+/**
  * Creates all terrain that will appear on the game screen
  **/
 void setup_terrain() {
@@ -388,11 +464,24 @@ void setup_terrain() {
  **/
 void setup_hazards() {
 	// Decide on maximum number of terrain obstacles that can appear
-	max_hazards = 3;
+	max_hazards = 2;
 	hazards = malloc(max_hazards * sizeof(sprite_id));
 
 	for(int i=0; i<max_hazards; i++) {
 		hazard_create(i);
+	}
+}
+
+/**
+ * Creates all of the zombies that will appear on the game screen
+ **/
+void setup_zombies() {
+	// Decide on the maximum number of zombie obstacles that can appear
+	max_zombies = 3;
+	zombies = malloc(max_zombies * sizeof(sprite_id));
+
+	for(int i=0; i<max_zombies; i++) {
+		zombie_create(i);
 	}
 }
 
@@ -454,6 +543,7 @@ void setup_game_state() {
 	setup_fuel_station();
 	setup_terrain();
 	setup_hazards();
+	//setup_zombies();
 	
 	// Setup the car at the bottom of the screen, middle of road
 	int y = screen_height() - PLAYER_HEIGHT - 2;
@@ -627,6 +717,22 @@ void update_hazards() {
 }
 
 /**
+ * Step all of the zombies so that they scroll and create a new zombie when the old one steps out of 
+ * bounds
+ **/
+void update_zombies() {
+	for(int i=0; i<max_zombies; i++) {
+		sprite_step(zombies[i]);
+
+		// Check if any zombies went out of bounds
+		if(sprite_y(zombies[i]) > screen_height()) {
+			// Create a new zombie
+			zombie_reset(i);
+		}
+	}
+}
+
+/**
  * Check if the fuel station has gone off limits and resets it to the appropritate location 
  **/
 void update_fuel_station() {
@@ -692,6 +798,7 @@ void update_game_screen() {
 		update_fuel_station();
 		update_terrain();
 		update_hazards();
+		//update_zombies();
 		sprite_step(finish_line);
 
 		speed_ctr = 0;
@@ -831,6 +938,15 @@ void draw_hazards() {
 }
 
 /**
+ * Draw all of the zombie sprites
+ **/
+void draw_zombies() {
+	for(int i=0; i<max_zombies; i++) {
+		sprite_draw(zombies[i]);
+	}
+}
+
+/**
  * Draw the game screen
  **/
 void draw_game_screen() {
@@ -839,6 +955,7 @@ void draw_game_screen() {
 	sprite_draw(finish_line);
 	draw_terrain();
 	draw_hazards();
+	//draw_zombies();
 
 	sprite_draw(fuel_station);
 	sprite_draw(player);
@@ -865,7 +982,6 @@ void draw() {
 		case GAME_SCREEN:
 			draw_game_screen();
 			break;
-
 		case GAME_OVER_SCREEN:
 			draw_game_over_screen();
 			break;
@@ -905,5 +1021,6 @@ int main( void ) {
 	}
 
 	cleanup_screen();
+	free_memory();
 	return 0;
 }
