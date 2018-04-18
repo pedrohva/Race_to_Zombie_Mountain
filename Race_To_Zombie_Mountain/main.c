@@ -557,6 +557,8 @@ void setup_game_state() {
 	speed = 0;
 	speed_ctr = 0;
 
+	score = 0;
+
 	game_start_time = get_current_time();
 	distance_counter = 0;
 	distance_travelled = 0;
@@ -816,6 +818,54 @@ void update_game_screen() {
 	if((sprite_y(player) + sprite_height(player)) < sprite_y(finish_line)) {
 		change_state(GAME_OVER_SCREEN);
 	}
+
+	// Update the score
+	score = ((distance_travelled * 8) - (car_condition)) - (get_current_time() - game_start_time) + 50;
+	if(score < 0) {
+		score = 1;
+	} else if(score > 999999) {
+		score = 999999;
+	}
+}
+
+/**
+ * Updates the game over screen. Will pretty much just wait till the user presses a button to move to the Highscore 
+ * screen
+ **/
+void update_game_over_screen() {
+	// Check if the user has achieved a new highscore
+	if(check_new_hscore()) {
+        // Get the user's name
+        char name[MAX_NAME_SIZE] = "";
+
+        // The current letter we're in
+        int index = 0;
+        // Get the characters from the user for the name
+        bool done = false;
+        while((index < MAX_NAME_SIZE) && (!done)) {
+            char letter = get_char();
+            // Stop if the user presses ENTER
+            if(letter == 10) {
+                done = true;
+            } else {
+                if((letter > 32) && (letter < 127)) {
+                    // Append the letter to the current name
+                    name[index] = letter;
+                    index++;
+                }
+            }
+        }
+
+        process_hscore(name);
+		sort_scores();
+		save_scores();
+		change_state(HIGHSCORE_SCREEN);
+    } else {
+		// Wait for the user to press a key if no game over was announced
+		if(get_char() >= 0) {
+			change_state(HIGHSCORE_SCREEN);
+		}
+	}
 }
 
 /**
@@ -829,6 +879,12 @@ void update() {
 			break;
 		case GAME_SCREEN:
 			update_game_screen();
+			break;
+		case GAME_OVER_SCREEN:
+			update_game_over_screen();
+			break;
+		case HIGHSCORE_SCREEN:
+			update_highscore_screen();
 			break;
 		default:
 			break;
@@ -872,34 +928,38 @@ void draw_dashboard() {
 		 draw_char(dashboard_x, y, dashboard_border_char);
 	 }
 
+	// The current score of the player
+	draw_string(2, 2, "Score");
+	draw_int(12, 2, score);
+
 	// The distance travelled since the start of the game
-	draw_string(2, 2, "Distance");
-	draw_int(12, 2, distance_travelled);
+	draw_string(2, 3, "Distance");
+	draw_int(12, 3, distance_travelled);
 
 	// Draw the time elapsed since game started
-	draw_string(2, 3, "Time");
-	draw_double(12, 3, get_current_time() - game_start_time);
+	draw_string(2, 4, "Time");
+	draw_double(12, 4, get_current_time() - game_start_time);
 
 	// Draw the speed stat
-	draw_string(2, 4, "Speed");
-	draw_int(12, 4, speed);
+	draw_string(2, 5, "Speed");
+	draw_int(12, 5, speed);
 
 	// Draw the fuel stat
-	draw_string(2,5, "Fuel");
-	draw_int(12, 5, fuel);
+	draw_string(2, 6, "Fuel");
+	draw_int(12, 6, fuel);
 
 	// Draw the condition stat
-	draw_string(2,6,"Condition");
-	draw_int(12,6,car_condition);
+	draw_string(2,7,"Condition");
+	draw_int(12,7,car_condition);
 
 	// Draw warning stating that the car is offroad
 	if(car_offroad()) {
-		draw_string(2, 8, "OFFROAD");
+		draw_string(2, 9, "OFFROAD");
 	}
 
 	// Draw warning saying we're refuelling
 	if(refuelling) {
-		draw_string(2, 9, "REFUELLING");
+		draw_string(2, 10, "REFUELLING");
 	}
 }
 
@@ -966,6 +1026,15 @@ void draw_game_screen() {
  **/
 void draw_game_over_screen() {
 	draw_center_text("GAME OVER", screen_height() / 2);
+	char score_text[50];
+	sprintf(score_text, "Your score was: %d", score);
+	draw_center_text(score_text, (screen_height() / 2) + 1);
+	if(check_new_hscore()) {
+		draw_center_text("High Score!!", (screen_height() / 2) + 4);
+		draw_center_text("Type your name and press Enter", (screen_height() / 2) + 5);
+	} else {
+		draw_center_text("Press any key to continue", screen_height()-2);
+	}
 }
 
 /**
@@ -985,6 +1054,9 @@ void draw() {
 		case GAME_OVER_SCREEN:
 			draw_game_over_screen();
 			break;
+		case HIGHSCORE_SCREEN:
+			draw_highscore_screen();
+			break;
 		default:
 			break;
 	}
@@ -999,6 +1071,8 @@ void draw() {
 int main( void ) {
 	// Setup all of the images to be used on the sprites
 	imagemngr_init();
+	// Get all current highscores from the highscore file
+	get_hscores();
 
 	setup_screen();
 

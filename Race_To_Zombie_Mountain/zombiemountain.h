@@ -8,6 +8,7 @@
 #include "cab202_sprites.h"
 
 #include "imagemngr.h"
+#include "hscore.h"
 
 // Define the border character as a full stop (.)
 #define BORDER_CHAR	46
@@ -113,6 +114,7 @@ enum GameScreens {
 	START_SCREEN,
 	GAME_SCREEN,
 	GAME_OVER_SCREEN,
+	HIGHSCORE_SCREEN,
 	EXIT_SCREEN
 } game_state;
 
