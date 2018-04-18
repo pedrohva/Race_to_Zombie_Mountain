@@ -102,77 +102,6 @@ void refuel() {
 }
 
 /**
- * Checks if there is any terrain colliding with the sprite. If invulnerable, clear the hazard on the road so that the car can
- * spawn
- **/
-bool check_collision(sprite_id sprite, bool invulnerable) {
-	bool collided = false;
-
-	// The coordinates of the sprite (used to improve readability as the coords should not change in this function)
-	int x = sprite_x(sprite);
-	int y = sprite_y(sprite);
-	int width = sprite_width(sprite);
-	int height = sprite_height(sprite);
-
-	// Iterate through the terrain to see if there was a collision
-	for(int i=0; i<max_terrain_obs; i++) {
-		// Check if the terrain has already been created (needed in order to check for collision when first creating 
-		// the terrain objects, see create_terrain())
-		if(terrain[i] != NULL) {
-			int terrain_x = sprite_x(terrain[i]);
-			int terrain_y = sprite_y(terrain[i]);
-			int terrain_width = sprite_width(terrain[i]);
-			int terrain_height = sprite_height(terrain[i]);
-
-			// Check if there is colllision in the x-axis
-			if(!((x + width <= terrain_x) || (x >= terrain_x + terrain_width))) {
-				// Check if there is collision in the y-axis
-				if(!((y + height < terrain_y) || (y > terrain_y + terrain_height))) {
-					collided = true;
-				}
-			}
-		}
-	}
-
-	// Iterate through the hazards to see if there was a collision
-	for(int i=0; i<max_hazards; i++) {
-		// Check if the terrain has already been created (needed in order to check for collision when first creating 
-		// the terrain objects, see create_terrain())
-		if(hazards[i] != NULL) {
-			int hazard_x = sprite_x(hazards[i]);
-			int hazard_y = sprite_y(hazards[i]);
-			int hazard_width = sprite_width(hazards[i]);
-			int hazard_height = sprite_height(hazards[i]);
-
-			// Check if there is colllision in the x-axis
-			if(!((x + width <= hazard_x) || (x >= hazard_x + hazard_width))) {
-				// Check if there is collision in the y-axis
-				if(!((y + height < hazard_y) || (y > hazard_y + hazard_height))) {
-					collided = true;
-					if(invulnerable) {
-						hazard_reset(i);
-					}
-				}
-			}
-		}
-	}
-
-	// Check if there is any collision with the fuel station
-	if(!((x + width <= sprite_x(fuel_station)) || (x >= sprite_x(fuel_station) + sprite_width(fuel_station)))) {
-		// Check if there is collision in the y-axis
-		if(!((y + height < sprite_y(fuel_station)) || (y > sprite_y(fuel_station) + sprite_height(fuel_station)))) {
-			collided = true;
-			// Destroy the player
-			if(sprites_equal(sprite, player)) {
-				car_condition = 0;
-			}
-		}
-	}
-
-	return collided;
-}
-
-/**
  * Checks if the coordinates given are in bounds of the game area (excludes the dashboard from the area)
  **/
 bool in_bounds(int x, int y) {
@@ -203,242 +132,6 @@ void reset_player_location() {
 }
 
 /**
- * Create a road section of a certain type at the specified location
- **/
-void add_road_section(int x, int y, int type) {
-	road[y - 1] = type;
-	road_x_coords[y - 1] = x;
-}
-
-/**
- * Decides on the width and length of the road and adds the proper graphics to the array which
- * holds the road information
- **/
-void setup_road() {
-	road_length = screen_height() - 2;	// There should be borders at the top and bottom of the screen
-	int road_x = ((screen_width() - ROAD_WIDTH - 1 + DASHBOARD_SIZE) * 0.5);
-	even_stripe = true;
-	road = malloc(road_length * sizeof(int));
-	road_x_coords = malloc(road_length * sizeof(int));
-
-	// Build the individual road sections
-	for(int i=0; i<road_length; i++) {
-		add_road_section(road_x, i + 1, ROAD_STRAIGHT);
-	}
-}
-
-/**
- * Moves a terrain to the top of the screen and changes the terrain type
- **/
-void terrain_reset(int index) {
-	// Choose a new terrain
-	int id = rand() % NUM_TERRAIN_TYPES;
-	int width = 0;
-	int height = 0;
-	char* image = get_image(id, TERRAIN, &width, &height);
-
-	// Check if we'll place the terrain on the left or right side of the road
-	bool left = rand() % 2;
-	int x = -1;
-	if(left) {
-		int min_x = DASHBOARD_SIZE + 1;
-		int max_x = road_x_coords[0] - width - 1;
-		x = rand() % (max_x + 1 - min_x) + min_x;
-	} else {
-		int min_x = road_x_coords[0] + ROAD_WIDTH + 1;
-		int max_x = screen_width() - 2 - width;
-		x = rand() % (max_x + 1 - min_x) + min_x;
-	}
-
-	// Place the terrain just above the screen so it scrolls as into view as soon as reset
-	int y = 0 - height;
-
-	// Create a temporary sprite of the new terrain to check for collision
-	sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-	// We won't reset the terrain unless there will be no collision (try again next tick)
-	if(!check_collision(temp_sprite,false)) {
-		// Reset the terrain
-		terrain[index]->x = x;
-		terrain[index]->y = y;
-		terrain[index]->width = width;
-		terrain[index]->height = height;
-		sprite_set_image(terrain[index], image);
-		sprite_turn_to(terrain[index],0,1);
-	}
-	sprite_destroy(temp_sprite);
-}
-
-/**
- * Moves a hazard to the top of the screen and changes the hazard type
- **/
-void hazard_reset(int index) {
-	// Choose the type of hazard to place
-	int id = rand() % NUM_HAZARD_TYPES;
-	int width = 0;
-	int height = 0;
-	char* image = get_image(id, HAZARD, &width, &height);
-
-	// Move the hazard above the screen a random amount
-	int y = 0 - height - rand() % 25;
-
-	// Choose a x coordinate between the road limits
-	int min_x = road_x_coords[0] + 1;
-	int max_x = road_x_coords[0] + ROAD_WIDTH - 1 - width;
-	int x = rand() % (max_x + 1 - min_x) + min_x;
-
-	// Create a temporary sprite of the new hazard to check for collision
-	sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-	if(!check_collision(temp_sprite,false)) {
-		// Reset the hazard
-		hazards[index]->x = x;
-		hazards[index]->y = y;
-		hazards[index]->width = width;
-		hazards[index]->height = height;
-		sprite_set_image(hazards[index], image);
-		sprite_turn_to(hazards[index], 0, 1);
-	}
-	sprite_destroy(temp_sprite);
-}
-
-/**
- * Creates a piece of terrain at a valid location (anywhere outside the road)
- **/
-void terrain_create(int index) {
-	// Choose the type of terrain to place
-	int id = rand() % NUM_TERRAIN_TYPES;
-	int width = 0;
-	int height = 0;
-	char* image = get_image(id, TERRAIN, &width, &height);
-	
-	// Keep searching for new coordinates until there is no collision with other terrain
-	bool valid_location = false;
-	while(!valid_location) {
-		int y = (rand()%(screen_height()-2-height)) + 2;
-
-		// Check if we'll place the terrain on the left or right side of the road
-		bool left = rand() % 2;
-		int x = -1;
-		if(left) {
-			int min_x = DASHBOARD_SIZE + 1;
-			int max_x = road_x_coords[y] - width - 1;
-			x = rand() % (max_x + 1 - min_x) + min_x;
-		} else {
-			int min_x = road_x_coords[y] + ROAD_WIDTH + 1;
-			int max_x = screen_width() - 2 - width;
-			x = rand() % (max_x + 1 - min_x) + min_x;
-		}
-
-		// Create a temporary sprite of the new terrain to check for collision
-		sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-		if(!check_collision(temp_sprite,false)) {
-			// Create the sprite of the terrain
-			terrain[index] = sprite_create(x, y, width, height, image);
-			sprite_turn_to(terrain[index], 0, 1);
-			valid_location = true;
-		}
-		sprite_destroy(temp_sprite);
-	}
-}
-
-/**
- * Creates a piece of hazard at a valid location (anywhere in the road)
- **/
-void hazard_create(int index) {
-	// Choose the type of hazard to place
-	int id = rand() % NUM_HAZARD_TYPES;
-	int width = 0;
-	int height = 0;
-	char* image = get_image(id, HAZARD, &width, &height);
-
-	// Keep searching for new coordinates until there is no collision with other hazards
-	bool valid_location = false;
-	while(!valid_location) {
-		int y = (rand()%((screen_height()/2)-height)) + 2;
-		int min_x = road_x_coords[y] + 1;
-		int max_x = road_x_coords[y] + ROAD_WIDTH - 1 - width;
-		int x = rand() % (max_x + 1 - min_x) + min_x;
-
-		// Create a temporary sprite of the new hazard to check for collision
-		sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-		if(!check_collision(temp_sprite,false)) {
-			// Create the sprite of the terrain
-			hazards[index] = sprite_create(x, y, width, height, image);
-			sprite_turn_to(hazards[index], 0, 1);
-			valid_location = true;
-		}
-		sprite_destroy(temp_sprite);
-	}
-}
-
-/**
- * Creates all terrain that will appear on the game screen
- **/
-void setup_terrain() {
-	// Decide on maximum number of terrain obstacles that can appear
-	max_terrain_obs = 6;
-	terrain = malloc(max_terrain_obs * sizeof(sprite_id));
-
-	for(int i=0; i<max_terrain_obs; i++) {
-		terrain_create(i);
-	}
-}
-
-/**
- * Creates all hazards that will appear on the game screen
- **/
-void setup_hazards() {
-	// Decide on maximum number of terrain obstacles that can appear
-	max_hazards = 2;
-	hazards = malloc(max_hazards * sizeof(sprite_id));
-
-	for(int i=0; i<max_hazards; i++) {
-		hazard_create(i);
-	}
-}
-
-/**
- * Create the fuel station sprite. Will choose a random side of the road and make it appear a 
- * random distance above the screen
- **/
-void setup_fuel_station() {
-	fuel = MAX_FUEL;
-	refuelling = false;
-
-	int station_width = 0;
-	int station_height = 0;
-	char* station_image = get_fuel_station_image(&station_width, &station_height);
-
-	// Put the fuel station a random distance above the screen
-	int y = 0 - station_height - FUEL_STATION_DELAY_DIST - (rand() % FUEL_STATION_VARIANCE);
-
-	// Choose the side of the road
-	int x;
-	bool left = rand() % 2;
-	if(left) {
-		x = road_x_coords[0] - station_width;
-	} else {
-		x = road_x_coords[0] + ROAD_WIDTH + 1;
-	}
-
-	fuel_station = sprite_create(x, y, station_width, station_height, station_image);
-	sprite_turn_to(fuel_station, 0, 1);
-}
-
-/**
- * Create a finish line a certain distance above the screen
- **/
-void setup_finish_line() {
-	int width = ROAD_WIDTH + 1;
-	char* image = get_finish_line_image();
-
-	// Set a certain distance above the car
-	int y = sprite_y(player) - FINISH_LINE_DIST;
-
-	finish_line = sprite_create(road_x_coords[0], y, width, 1, image);
-	sprite_turn_to(finish_line, 0, 1);
-}
-
-/**
  * Resets and setups the dashboard to display in a variety of window sizes
  */
 void setup_dashboard() {
@@ -450,10 +143,7 @@ void setup_dashboard() {
  **/
 void setup_game_state() {
 	setup_dashboard();
-	setup_road();
-	setup_fuel_station();
-	setup_terrain();
-	setup_hazards();
+	setup_obs();
 
 	// Get all current highscores from the highscore file
 	get_hscores();
@@ -464,7 +154,9 @@ void setup_game_state() {
 	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
 	car_condition = 100;
 
-	setup_finish_line();
+	// Setup fuel settings 
+	fuel = MAX_FUEL;
+	refuelling = false;
 
 	// Initialise the speed settings
 	speed = 0;
@@ -602,60 +294,6 @@ void update_start_screen() {
 }
 
 /**
- * Step the terrain so that it scrolls and create new terrain when the old one goes out of bounds
- **/
-void update_terrain() {
-	for(int i=0; i<max_terrain_obs; i++) {
-		sprite_step(terrain[i]);
-
-		// Check if any terrain went out of bounds
-		if(sprite_y(terrain[i]) > screen_height()) {
-			// Create a new terrain 
-			terrain_reset(i);
-		}
-	}
-}
-
-/**
- * Step the hazards so that it scrolls and create new hazards when the old one goes out of bounds
- **/
-void update_hazards() {
-	for(int i=0; i<max_hazards; i++) {
-		sprite_step(hazards[i]);
-
-		// Check if any hazard went out of bounds
-		if(sprite_y(hazards[i]) > screen_height()) {
-			// Create a new hazard
-			hazard_reset(i);
-		}
-	}
-}
-
-/**
- * Check if the fuel station has gone off limits and resets it to the appropritate location 
- **/
-void update_fuel_station() {
-	sprite_step(fuel_station);
-
-	// Check if the fuel station went out of bounds
-	if(sprite_y(fuel_station) > screen_height()) {
-		// Reset the fuel station to a location above the screen
-		int y = 0 - sprite_height(fuel_station) - FUEL_STATION_DELAY_DIST - (rand() % FUEL_STATION_VARIANCE);
-
-		// Choose the side of the road
-		int x;
-		bool left = rand() % 2;
-		if(left) {
-			x = road_x_coords[0] - sprite_width(fuel_station);
-		} else {
-			x = road_x_coords[0] + ROAD_WIDTH + 1;
-		}
-
-		sprite_move_to(fuel_station, x, y);
-	}
-}
-
-/**
  * Code that updates the logic of the game relevant to the Game state
  **/
 void update_game_screen() {
@@ -683,21 +321,23 @@ void update_game_screen() {
 			distance_counter = 0;
 		}
 
-		// Check if the car has collided
+		// Check if the car has collided with an obstacle
 		if(check_collision(player,false)) {
-			speed = 0;
-			fuel = MAX_FUEL;
-			car_condition -= 10;
-			if(car_condition <= 0) {
+			// Check if the car has collided with a fuel station
+			if(check_fstation_collision(player)) {
 				change_state(GAME_OVER_SCREEN);
+			} else {
+				speed = 0;
+				fuel = MAX_FUEL;
+				car_condition -= 20;
+				if(car_condition <= 0) {
+					change_state(GAME_OVER_SCREEN);
+				}
+				reset_player_location();
 			}
-			reset_player_location();
 		}
 
-		update_fuel_station();
-		update_terrain();
-		update_hazards();
-		sprite_step(finish_line);
+		update_obs();
 
 		speed_ctr = 0;
 	}
@@ -884,50 +524,12 @@ void draw_dashboard() {
 }
 
 /**
- * Draws the road by using the graphic information from the 'road' array. Also decides where to draw
- * the center stripes
- **/
-void draw_road() {
-	for(int i=0; i<road_length; i++) {
-		draw_char(road_x_coords[i], i + 1, get_road_image(road[i]));
-		draw_char(road_x_coords[i] + ROAD_WIDTH, i + 1, get_road_image(road[i]));
-		if(((i+1) % 2 == 0) && (even_stripe)) {
-			draw_char(road_x_coords[i] + (ROAD_WIDTH * 0.5), i + 1, get_road_image(road[i]));
-		} else if(((i+1) % 2 != 0) && !even_stripe) {
-			draw_char(road_x_coords[i] + (ROAD_WIDTH * 0.5), i + 1, get_road_image(road[i]));
-		}
-	}
-}
-
-/**
- * Draw all of the terrain sprites
- **/
-void draw_terrain() {
-	for(int i=0; i<max_terrain_obs; i++) {
-		sprite_draw(terrain[i]);
-	}
-}
-
-/**
- * Draw all of the hazard sprites
- **/
-void draw_hazards() {
-	for(int i=0; i<max_hazards; i++) {
-		sprite_draw(hazards[i]);
-	}
-}
-
-/**
  * Draw the game screen
  **/
 void draw_game_screen() {
 	draw_dashboard();
-	draw_road();
-	sprite_draw(finish_line);
-	draw_terrain();
-	draw_hazards();
+	draw_obs();
 
-	sprite_draw(fuel_station);
 	sprite_draw(player);
 }
 
@@ -988,10 +590,11 @@ void draw() {
  * The entry point to the program
  **/
 int main( void ) {
+	// Setup the ZDK screen. Alwas do this first
+	setup_screen();
+
 	// Setup all of the images to be used on the sprites
 	imagemngr_init();
-
-	setup_screen();
 
 	change_state(START_SCREEN);
 
@@ -1001,6 +604,9 @@ int main( void ) {
 	// The timer to check how long it takes to execute one iteration of game loop. 
 	// Set the interval to 17 so the game runs at ~60 fps
 	timer_id loop_timer = create_timer(LOOP_INTERVAL);
+
+	// Setup the obstacle arrays 
+	init_obs();
 
 	// Start the main game loop
 	while(game_state != EXIT_SCREEN) {
