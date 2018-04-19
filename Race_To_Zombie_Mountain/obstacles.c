@@ -87,17 +87,19 @@ void terrain_create(int index) {
 	int height = 0;
 	char* image = get_image(id, TERRAIN, &width, &height);
 	
-	int y = (rand()%(screen_height()-2-height)) + 2;
+	int min_y = 0 - (rand()%screen_height());
+	int max_y = screen_height() - height - 2;
+	int y = (rand()%(max_y + 1 - min_y)) + min_y;
 
     // Check if we'll place the terrain on the left or right side of the road
     bool left = rand() % 2;
     int x = -1;
     if(left) {
         int min_x = DASHBOARD_SIZE + 1;
-        int max_x = road_x_coords[y] - width - 1;
+        int max_x = road_x_coords[0] - width - 1;
         x = rand() % (max_x + 1 - min_x) + min_x;
     } else {
-        int min_x = road_x_coords[y] + ROAD_WIDTH + 1;
+        int min_x = road_x_coords[0] + ROAD_WIDTH + 1;
         int max_x = screen_width() - 2 - width;
         x = rand() % (max_x + 1 - min_x) + min_x;
     }
@@ -132,11 +134,6 @@ void hazard_create(int index) {
  * Creates all terrain that will appear on the game screen
  **/
 void setup_terrain() {
-    // Set all the sprite_ids to null
-    for(int i=0; i<max_terrain_obs; i++) {
-        terrain[i] = NULL;
-    }
-
     // Create all of the terrain obstacles 
 	for(int i=0; i<max_terrain_obs; i++) {
 		terrain_create(i);
@@ -144,7 +141,9 @@ void setup_terrain() {
 
     // Reset all of the terrain obstacles so that they don't collide
     for(int i=0; i<max_terrain_obs; i++) {
-		terrain_reset(i);
+		if(check_collision(terrain[i],false)) {
+			terrain_reset(i);
+		}
 	}
 }
 
@@ -245,12 +244,12 @@ void setup_obs() {
 void init_obs() {
     // Init Hazards
     // Decide on maximum number of terrain obstacles that can appear
-	max_hazards = 2;
+	max_hazards = 5;
 	hazards = malloc(max_hazards * sizeof(sprite_id));
 
     // Init Terrain
     // Decide on maximum number of terrain obstacles that can appear
-	max_terrain_obs = 6;
+	max_terrain_obs = 8 + ((screen_width()-80)/5) + ((screen_height()-24)/5);
 	terrain = malloc(max_terrain_obs * sizeof(sprite_id));
 
     // Init road
@@ -370,70 +369,51 @@ void draw_obs() {
 }
 
 /**
+ * Checks if the two sprites collide with each other
+ **/
+bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2) {
+	// Check if both sprites are valid
+	if((sprite1 != NULL) && (sprite2 != NULL)) {
+		// Check if there is colllision in the x-axis
+		if(!((sprite_x(sprite1) + sprite_width(sprite1) <= sprite_x(sprite2)) || (sprite_x(sprite1) >= sprite_x(sprite2) + sprite_width(sprite2)))) {
+			// Check if there is collision in the y-axis
+			if(!((sprite_y(sprite1) + sprite_height(sprite1) < sprite_y(sprite2)) || (sprite_y(sprite1) > sprite_y(sprite2) + sprite_height(sprite2)))) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+/**
  * Checks if there is any terrain colliding with the sprite. If invulnerable, clear the hazard on the road so that the car can
  * spawn
  **/
 bool check_collision(sprite_id sprite, bool invulnerable) {
-	bool collided = false;
-
-	// The coordinates of the sprite (used to improve readability as the coords should not change in this function)
-	int x = sprite_x(sprite);
-	int y = sprite_y(sprite);
-	int width = sprite_width(sprite);
-	int height = sprite_height(sprite);
-
 	// Iterate through the terrain to see if there was a collision
 	for(int i=0; i<max_terrain_obs; i++) {
-		// Check if the terrain has already been created (needed in order to check for collision when first creating 
-		// the terrain objects, see create_terrain())
-		if(terrain[i] != NULL) {
-			int terrain_x = sprite_x(terrain[i]);
-			int terrain_y = sprite_y(terrain[i]);
-			int terrain_width = sprite_width(terrain[i]);
-			int terrain_height = sprite_height(terrain[i]);
-
-			// Check if there is colllision in the x-axis
-			if(!((x + width <= terrain_x) || (x >= terrain_x + terrain_width))) {
-				// Check if there is collision in the y-axis
-				if(!((y + height < terrain_y) || (y > terrain_y + terrain_height))) {
-					collided = true;
-				}
-			}
+		if(check_sprite_collided(sprite,terrain[i])) {
+			return true;
 		}
 	}
 
 	// Iterate through the hazards to see if there was a collision
 	for(int i=0; i<max_hazards; i++) {
-		// Check if the terrain has already been created (needed in order to check for collision when first creating 
-		// the terrain objects, see create_terrain())
-		if(hazards[i] != NULL) {
-			int hazard_x = sprite_x(hazards[i]);
-			int hazard_y = sprite_y(hazards[i]);
-			int hazard_width = sprite_width(hazards[i]);
-			int hazard_height = sprite_height(hazards[i]);
-
-			// Check if there is colllision in the x-axis
-			if(!((x + width <= hazard_x) || (x >= hazard_x + hazard_width))) {
-				// Check if there is collision in the y-axis
-				if(!((y + height < hazard_y) || (y > hazard_y + hazard_height))) {
-					collided = true;
-					if(invulnerable) {
-						hazard_reset(i);
-					}
-				}
+		if(check_sprite_collided(sprite,hazards[i])) {
+			if(invulnerable) {
+				hazard_reset(i);
 			}
+			return true;
 		}
 	}
 
-	// Check if there is any collision with the fuel station
-	if(!((x + width <= sprite_x(fuel_station)) || (x >= sprite_x(fuel_station) + sprite_width(fuel_station)))) {
-		// Check if there is collision in the y-axis
-		if(!((y + height < sprite_y(fuel_station)) || (y > sprite_y(fuel_station) + sprite_height(fuel_station)))) {
-			collided = true;
-		}
+	// Check if collides with fuel station
+	if(check_sprite_collided(sprite,fuel_station)) {
+		return true;
 	}
 
-	return collided;
+	return false;
 }
 
 /**
