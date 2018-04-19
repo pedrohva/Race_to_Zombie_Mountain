@@ -362,6 +362,11 @@ void update_game_screen() {
 	} else if(score > 999999) {
 		score = 999999;
 	}
+
+	// Check if the player has run out of fuel
+	if(fuel <= 0) {
+		change_state(GAME_OVER_SCREEN);
+	}
 }
 
 /**
@@ -382,6 +387,10 @@ void update_game_over_screen() {
             char letter = get_char();
             // Stop if the user presses ENTER
             if(letter == 10) {
+				// If the user didn't type anything
+				if(index == 0) {
+					strcpy(name, "Anonymous");
+				}
                 done = true;
             } else {
                 if((letter > 32) && (letter < 127)) {
@@ -476,6 +485,25 @@ void draw_borders() {
  **/
 void draw_start_screen() {
 	draw_center_text("Race to Zombie Mountain", 3);
+	
+	// The y coordinate of where we'll print the how to play text
+	int y = (screen_height() / 2) - 3;
+	// The x coordinate of where we'll print the controls
+	int x = screen_width() - 32;
+	draw_string(3, y, "INSTRUCTIONS");
+	draw_string(x, y, "CONTROLS");
+	y++;
+	draw_string(3, y, "Reach the finish line");
+	draw_string(x, y, "a/d : Move Left/Right");
+	y++;
+	draw_string(3, y, "Collisions reduce car condition");
+	draw_string(x, y, "w/s : Accelerate/Decelerate");
+	y++;
+	draw_string(3, y++, "Game over if car condition is 0, ");
+	draw_string(3, y++, "collides with fuel station or ");
+	draw_string(3, y++, "runs out of fuel");
+	draw_string(3, y++, "Drive with low speed next to fuel station to refuel");
+	draw_center_text("Press any key to play...", screen_height() - 5);
 	draw_center_text("Pedro Alves - n9424342", screen_height() - 2);
 }
 
@@ -483,43 +511,47 @@ void draw_start_screen() {
  * Draw the borders and all information that we want displayed on the dashboard
  **/
 void draw_dashboard() {
-	 // Draw the borders
-	 for(int y=1; y<screen_width()-1; y++) {
-		 draw_char(dashboard_x, y, dashboard_border_char);
-	 }
+	// Draw the borders
+	for(int y=1; y<screen_width()-1; y++) {
+		draw_char(dashboard_x, y, dashboard_border_char);
+	}
 
-	// The current score of the player
-	draw_string(2, 2, "Score");
-	draw_int(12, 2, score);
-
-	// The distance travelled since the start of the game
-	draw_string(2, 3, "Distance");
-	draw_int(12, 3, distance_travelled);
-
-	// Draw the time elapsed since game started
-	draw_string(2, 4, "Time");
-	draw_double(12, 4, get_current_time() - game_start_time);
-
+	 draw_string(2, 2, "Telemetry");
 	// Draw the speed stat
-	draw_string(2, 5, "Speed");
-	draw_int(12, 5, speed);
-
+	draw_string(2, 3, "Speed");
+	draw_int(12, 3, speed);
 	// Draw the fuel stat
-	draw_string(2, 6, "Fuel");
-	draw_int(12, 6, fuel);
-
+	draw_string(2, 4, "Fuel");
+	draw_int(12, 4, fuel);
 	// Draw the condition stat
-	draw_string(2,7,"Condition");
-	draw_int(12,7,car_condition);
+	draw_string(2,5,"Condition");
+	draw_int(12,5,car_condition);
+
+	draw_string(2, 7, "Stats");
+	// The current score of the player
+	draw_string(2, 8, "Score");
+	draw_int(12, 8, score);
+	// The distance travelled since the start of the game
+	draw_string(2, 9, "Distance");
+	draw_int(12, 9, distance_travelled);
+	// Draw the time elapsed since game started
+	draw_string(2, 10, "Time");
+	draw_double(12, 10, get_current_time() - game_start_time);
 
 	// Draw warning stating that the car is offroad
 	if(car_offroad()) {
-		draw_string(2, 9, "OFFROAD");
+		draw_string(2, 12, "OFFROAD");
 	}
 
 	// Draw warning saying we're refuelling
 	if(refuelling) {
-		draw_string(2, 10, "REFUELLING");
+		draw_string(2, 13, "REFUELLING");
+		// The time left to refuel
+		double time_left = 3.0 - (get_current_time() - refuel_timer->reset_time);
+		if(time_left > 3.0) {
+			time_left = 3.0;
+		}
+		draw_double(2, 14, time_left);
 	}
 }
 
@@ -599,7 +631,7 @@ int main( void ) {
 	change_state(START_SCREEN);
 
 	// Seed our random number generator 
-	srand(100);
+	srand(get_current_time());
 
 	// The timer to check how long it takes to execute one iteration of game loop. 
 	// Set the interval to 17 so the game runs at ~60 fps
