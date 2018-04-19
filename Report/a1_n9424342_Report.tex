@@ -201,9 +201,9 @@ The game is started in different sized terminals and the borders are verified to
 	\end{center}
 \end{figure}
 \subsubsection*{Screen: 190x50}
-\begin{figure}[h]
+\begin{figure}[!ht]
 	\begin{center}
-	\includegraphics[width=0.745\textwidth]{images/border_190x50}
+	\includegraphics[width=0.77\paperwidth]{images/border_190x50}
 	\caption{The border with screen dimensions of 190x50}
 	\label{fig:border_190x50} 
 	\end{center}
@@ -214,7 +214,81 @@ The game is started in different sized terminals and the borders are verified to
 %	DASHBOARD
 %----------------------------------------------------------------------------------------
 \section{Dashboard}
-% Use 90x30 terminal size for examples
+A sub-window in the terminal which displays data regarding the player's car such as condition, speed and fuel as well as displaying stats on the game itself such as time spent and total distance travelled. 
+\newline
+Warnings also appear on the dashboard to notify the player that the car is offroad or is refuelling.
+
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int dashboard_x;
+\end{lstlisting}
+The x-coordinate of the border between the dashboard and the playing area.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define DASHBOARD_BORDER_CHAR	47
+\end{lstlisting}
+The ASCII character that will represent the border that separates the playing area and the dashboard.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int speed;
+\end{lstlisting}
+The current speed of the player.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int fuel;
+\end{lstlisting}
+The current fuel available to the player.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	int car_condition;
+\end{lstlisting}
+The condition of the car as a percentage.
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	int score;
+\end{lstlisting}
+The current score of the player.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int distance_travelled;
+\end{lstlisting}
+The distance travelled since the start of the game.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	double game_start_time;
+\end{lstlisting}
+The time in milliseconds that the game started.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	timer_id refuel_timer;
+\end{lstlisting}
+A timer that is set when the car starts refuelling.
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void draw_dashboard();
+\end{lstlisting}
+Draws a border between the playing area and the dashboard area. Calls \emph{draw\_string()} and \emph{draw\_int()} multiple times to print the relevant globals and their captions.
+\newline
+If the car is offroad or refuelling, a relevant warning will also be drawn. Additionaly for refuelling, will display how long until it is finished.
+\newline
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	bool car_offroad();
+\end{lstlisting}
+Checks if any portion of the car is outside the road boundaries and return true if so.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	double refuel_time_left();
+\end{lstlisting}
+Calculates how much time is left to finish refuelling. This is done by calculating the difference between the current time and the time the \emph{refuel\_timer} is meant to reset, this is then subtracted from \emph{3.0}.
+\newline
+
+\subsection*{Testing}
+
 \clearpage
 
 %----------------------------------------------------------------------------------------

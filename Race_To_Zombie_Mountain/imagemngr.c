@@ -78,8 +78,6 @@ void hazards_init() {
 void imagemngr_init() {
     terrain_init();
     hazards_init();
-
-    dashboard_border_char = '/';
 }
 
 /**

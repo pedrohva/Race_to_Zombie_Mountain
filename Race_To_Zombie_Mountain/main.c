@@ -356,8 +356,8 @@ void update_game_screen() {
 	}
 
 	// Update the score
-	score = ((distance_travelled * 8) - (car_condition)) - (get_current_time() - game_start_time) + 50;
-	if(score < 0) {
+	score = ((distance_travelled * 10) - (car_condition)) - (get_current_time() - game_start_time) + 90;
+	if(score <= 0) {
 		score = 1;
 	} else if(score > 999999) {
 		score = 999999;
@@ -508,12 +508,24 @@ void draw_start_screen() {
 }
 
 /**
+ * Find how much time there is left until the car finishes refuelling
+ **/
+double refuel_time_left() {
+	// The time left to refuel
+	double time_left = 3.0 - (get_current_time() - refuel_timer->reset_time);
+	if(time_left > 3.0) {
+		time_left = 3.0;
+	}
+	return time_left;
+}
+
+/**
  * Draw the borders and all information that we want displayed on the dashboard
  **/
 void draw_dashboard() {
 	// Draw the borders
 	for(int y=1; y<screen_width()-1; y++) {
-		draw_char(dashboard_x, y, dashboard_border_char);
+		draw_char(dashboard_x, y, DASHBOARD_BORDER_CHAR);
 	}
 
 	 draw_string(2, 2, "Telemetry");
@@ -546,12 +558,7 @@ void draw_dashboard() {
 	// Draw warning saying we're refuelling
 	if(refuelling) {
 		draw_string(2, 13, "REFUELLING");
-		// The time left to refuel
-		double time_left = 3.0 - (get_current_time() - refuel_timer->reset_time);
-		if(time_left > 3.0) {
-			time_left = 3.0;
-		}
-		draw_double(2, 14, time_left);
+		draw_double(2, 14, refuel_time_left());
 	}
 }
 

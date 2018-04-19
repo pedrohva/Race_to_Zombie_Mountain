@@ -12,6 +12,8 @@
 
 // Define the border character as a full stop (.)
 #define BORDER_CHAR	46
+// Define the border character for the dashboard as a slash (/)
+#define DASHBOARD_BORDER_CHAR	47
 
 // The interval of the speed timer and loop timer
 #define SPEED_INTERVAL	87
