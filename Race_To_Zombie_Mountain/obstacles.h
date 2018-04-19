@@ -83,15 +83,18 @@ void update_obs();
 void setup_obs();
 
 /**
- * Checks if there is any terrain colliding with the sprite. If invulnerable, clear the hazard on the road so that the car can
- * spawn
+ * Checks if there is any terrain, hazard or fuel station colliding with the sprite.
  **/
-bool check_collision(sprite_id sprite, bool invulnerable);
+bool check_collision(sprite_id sprite);
 
 /**
- * Checks if the player has collided with the fuel station. This is separate from the 
- * check_collision() funtion as a collision with the fuel station is lethal
+ * Checks if the two sprites collide with each other
  **/
-bool check_fstation_collision(sprite_id sprite);
+bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2);
+
+/**
+ * Moves a hazard to the top of the screen and changes the hazard type
+ **/
+void hazard_reset(int index);
 
 #endif

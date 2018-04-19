@@ -126,9 +126,6 @@ void reset_player_location() {
 
 	player->x = x;
 	player->y = y;
-
-	// Check for collision and clear the hazard on the road if there is any
-	check_collision(player, true);
 }
 
 /**
@@ -222,7 +219,7 @@ void handle_movement_input(int key) {
 
 	// Create a temporary sprite to check if car will collide
 	sprite_id temp_sprite = sprite_create(sprite_x(player)+dx, sprite_y(player), PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
-	if(check_collision(temp_sprite,false)) {
+	if(check_collision(temp_sprite)) {
 		dx = 0;
 	}
 	sprite_destroy(temp_sprite);
@@ -322,9 +319,9 @@ void update_game_screen() {
 		}
 
 		// Check if the car has collided with an obstacle
-		if(check_collision(player,false)) {
+		if(check_collision(player)) {
 			// Check if the car has collided with a fuel station
-			if(check_fstation_collision(player)) {
+			if(check_sprite_collided(player,fuel_station)) {
 				change_state(GAME_OVER_SCREEN);
 			} else {
 				speed = 0;
@@ -334,6 +331,12 @@ void update_game_screen() {
 					change_state(GAME_OVER_SCREEN);
 				}
 				reset_player_location();
+				// Remove any hazards in the way 
+				for(int i=0; i<max_hazards; i++) {
+					if(check_sprite_collided(player, hazards[i])) {
+						hazard_reset(i);
+					}
+				}
 			}
 		}
 

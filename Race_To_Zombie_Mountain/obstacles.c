@@ -33,7 +33,7 @@ void terrain_reset(int index) {
 	// Create a temporary sprite of the new terrain to check for collision
 	sprite_id temp_sprite = sprite_create(x, y, width, height, image);
 	// We won't reset the terrain unless there will be no collision (try again next tick)
-	if(!check_collision(temp_sprite,false)) {
+	if(!check_collision(temp_sprite)) {
 		// Reset the terrain
 		terrain[index]->x = x;
 		terrain[index]->y = y;
@@ -65,7 +65,7 @@ void hazard_reset(int index) {
 
 	// Create a temporary sprite of the new hazard to check for collision
 	sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-	if(!check_collision(temp_sprite,false)) {
+	if(!check_collision(temp_sprite)) {
 		// Reset the hazard
 		hazards[index]->x = x;
 		hazards[index]->y = y;
@@ -141,7 +141,7 @@ void setup_terrain() {
 
     // Reset all of the terrain obstacles so that they don't collide
     for(int i=0; i<max_terrain_obs; i++) {
-		if(check_collision(terrain[i],false)) {
+		if(check_collision(terrain[i])) {
 			terrain_reset(i);
 		}
 	}
@@ -151,17 +151,14 @@ void setup_terrain() {
  * Creates all hazards that will appear on the game screen
  **/
 void setup_hazards() {
-    // Set all the sprite_ids to null
-    for(int i=0; i<max_hazards; i++) {
-        hazards[i] = NULL;
-    }
-
 	for(int i=0; i<max_hazards; i++) {
 		hazard_create(i);
 	}
 
     for(int i=0; i<max_hazards; i++) {
-		hazard_reset(i);
+		if(check_collision(hazards[i])) {
+			hazard_reset(i);
+		}
 	}
 }
 
@@ -387,10 +384,9 @@ bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2) {
 }
 
 /**
- * Checks if there is any terrain colliding with the sprite. If invulnerable, clear the hazard on the road so that the car can
- * spawn
+ * Checks if there is any terrain, hazard or fuel station colliding with the sprite.
  **/
-bool check_collision(sprite_id sprite, bool invulnerable) {
+bool check_collision(sprite_id sprite) {
 	// Iterate through the terrain to see if there was a collision
 	for(int i=0; i<max_terrain_obs; i++) {
 		if(check_sprite_collided(sprite,terrain[i])) {
@@ -401,9 +397,6 @@ bool check_collision(sprite_id sprite, bool invulnerable) {
 	// Iterate through the hazards to see if there was a collision
 	for(int i=0; i<max_hazards; i++) {
 		if(check_sprite_collided(sprite,hazards[i])) {
-			if(invulnerable) {
-				hazard_reset(i);
-			}
 			return true;
 		}
 	}
@@ -414,28 +407,4 @@ bool check_collision(sprite_id sprite, bool invulnerable) {
 	}
 
 	return false;
-}
-
-/**
- * Checks if the player has collided with the fuel station. This is separate from the 
- * check_collision() funtion as a collision with the fuel station is lethal
- **/
-bool check_fstation_collision(sprite_id sprite) {
-    bool collided = false;
-
-	// The coordinates of the sprite (used to improve readability as the coords should not change in this function)
-	int x = sprite_x(sprite);
-	int y = sprite_y(sprite);
-	int width = sprite_width(sprite);
-	int height = sprite_height(sprite);
-
-    // Check if there is any collision with the fuel station
-	if(!((x + width <= sprite_x(fuel_station)) || (x >= sprite_x(fuel_station) + sprite_width(fuel_station)))) {
-		// Check if there is collision in the y-axis
-		if(!((y + height < sprite_y(fuel_station)) || (y > sprite_y(fuel_station) + sprite_height(fuel_station)))) {
-			collided = true;
-		}
-	}
-
-    return collided;
 }
