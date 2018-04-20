@@ -252,7 +252,7 @@ void setup_obs() {
 void init_obs() {
     // Init Hazards
     // Decide on maximum number of terrain obstacles that can appear
-	max_hazards = 5;
+	max_hazards = 3;
 	hazards = malloc(max_hazards * sizeof(sprite_id));
 
     // Init Terrain
@@ -421,7 +421,7 @@ bool check_collision(sprite_id sprite) {
 		// We don't want to check if it is colliding with itself
 		if(!sprites_equal(sprite, hazards[i])) {
 			if(check_sprite_collided(sprite,hazards[i])) {
-				return true;
+				//return true;
 			}
 		}
 	}

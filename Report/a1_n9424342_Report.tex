@@ -498,9 +498,62 @@ This timer controls when \emph{speed\_ctr} is increased.
 \subsection*{Functions}
 \begin{lstlisting}[style=CStyle]
 	// main.c
-	void setup_player_car();
+	bool update_speed_ctr();
 \end{lstlisting}
-Place the car sprite in the middle of the road, 2 units above the bottom of the screen. Also sets the car condition to 100\% and fuel to max.
+ Updates the \emph{speed\_ctr} if the timer has passed a certain limit. Will return true if it is time to update the game logic.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_screen();
+\end{lstlisting}
+Handles the updating of the game logic when necessary. 
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void handle_speed_input(int key);
+\end{lstlisting}
+Called by \emph{handle\_input()} when the input is detected to be aceleration or deceleration. Will check if the new speed will fit beside the bounds outlined at the start of this section and then adjust the \emph{speed} variable accordingly. 
+\newline
+
+\subsection*{Testing}
+\subsubsection*{Speed does not go below zero}
+When the game starts, the following keys are pressed "s-s-s". The result can be seen in Figure \ref{fig:speed_testdecel0}.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/speed_testdecel0}
+	\caption{Decelerating when speed is already zero}
+	\label{fig:speed_testdecel0} 
+	\end{center}
+\end{figure}
+\newline
+This also shows that the fuel and distance are not modified while the car is stationary but the time keeps increasing. This means the function \emph{update\_game\_screen()} is doing it's job of choosing which parts of the game logic to update.
+\newpage
+
+\subsubsection*{Distance covered with different speeds}
+Figure \ref{fig:speed_midspeed} shows the car travels 4 units in three seconds when speed is set to 5. Straight after, the speed was increased to 10 and Figure  \ref{fig:speed_maxspeed} shows the car travelled 10 units in three seconds.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/speed_midspeed}
+	\caption{Distance covered at speed 5 after three seconds}
+	\label{fig:speed_midspeed} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/speed_maxspeed}
+	\caption{Distance covered at speed 10 after three seconds}
+	\label{fig:speed_maxspeed} 
+	\end{center}
+\end{figure}
+\newpage
+
+\subsubsection*{Speed does not go above 10}
+This test was set up by having the car reach speed 10. Afterwards, the following keys were pressed "w,w,w,w" to verify that the speed wouldn't go above 10. 
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/speed_test_maxacel10}
+	\caption{Accelerating when speed is already 10}
+	\label{fig:speed_test_acel10} 
+	\end{center}
+\end{figure}
 
 \clearpage
 
@@ -508,7 +561,146 @@ Place the car sprite in the middle of the road, 2 units above the bottom of the 
 %	SCENERY AND OBSTACLES
 %----------------------------------------------------------------------------------------
 \section{Scenery and Obstacles}
+In this game, obstacles can be separated into three categories
+\begin{itemize}
+ 	\item Terrain (spawns offroad)
+ 	\item Road Hazards (limited to the road)
+	\item Fuel Depots
+\end{itemize}
+Terrain and Road Hazards behave the same and are only separated by where they can spawn. Fuel depots have additional functionality and are covered in the section \emph{Fuel Depot}. 
 
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	int max_terrain_obs;	
+\end{lstlisting}
+The maximum amount of terrain obstacles that can appear at one time. This is largely dependant on the screen size.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	sprite_id *terrain;
+\end{lstlisting}
+An array that holds the ids of all sprites representing terrain.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	int max_hazards;
+\end{lstlisting}
+The maximum amount of road hazards that can appear at one time. 
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	sprite_id *hazards;
+\end{lstlisting}
+An array that holds the ids of all sprites representing road hazards.
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void init_obs();	
+\end{lstlisting}
+Allocate the required memory to the arrays which will hold all obstacles. Will also calculate the maximum number of obstacles that can appear in one go.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void setup_obs();
+\end{lstlisting}
+Calls all of the required setup functions for obstacles, road, fuel station and the finish line.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void setup_terrain();
+\end{lstlisting}
+Fills the terrain array with sprites and makes sure none are spawned on top of each other.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void terrain_create(int index);
+\end{lstlisting}
+Called by \emph{setup\_terrain()}. Chooses a type of terrain and a random valid location for it. Then proceeds to add the sprite id of that terrain to the appropriate array.
+\newpage
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void terrain_reset(int index);
+\end{lstlisting}
+Moves the terrain corresponding to the index a randomised distance above the screen. The type of terrain and it's location will also be randomised. Nothing will happen if it collides with another obstacle so this function should be called again in the next game tick (done in \emph{update\_game\_screen()}.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void update_terrain();
+\end{lstlisting}
+Steps all of the terrain sprites in the terrain array and then checks if any have gone out of bounds below the screen. Will then attempt to reset the terrain with \emph{terrain\_reset()}.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void setup_hazards() 
+\end{lstlisting}
+Fills the hazards array with sprites and makes sure none are spawned on top of each other.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void hazard_create(int index)
+\end{lstlisting}
+Called by \emph{setup\_hazards()}. Chooses a type of hazard and a random valid location for it. Then proceeds to add the sprite id of that hazard to the appropriate array.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void hazard_reset(int index)
+\end{lstlisting}
+Moves the hazard corresponding to the index given a randomised distance above the screen. The type of hazard and it's location will also be randomised. Nothing will happen if it collides with another obstacle so this function should be called again in the next game tick (done in \emph{update\_game\_screen()}. The hazard and terrain setup, update and reset functions are similar but need to be separated due to different arrays being used and both having different limitations on where they can be spawned.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void update_hazards();
+\end{lstlisting}
+Steps all of the hazard sprites in the hazards array and then checks if any have gone out of bounds below the screen. Will then attempt to reset the hazard with \emph{hazard\_reset()}.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void update_obs();
+\end{lstlisting}
+Call all of the update functions for each different type of obstacles.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void draw_obs();
+\end{lstlisting}
+Call all of the draw functions for each different type of obstacles.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void draw_terrain();
+\end{lstlisting}
+Call \emph{sprite\_draw()} for each terrain in the terrain array.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void draw_hazards();
+\end{lstlisting}
+Call \emph{sprite\_draw()} for each hazard in the hazards array.
+\newpage
+
+\subsection*{Testing}
+\subsubsection*{Obstacles scroll at intermediate speed}
+After the game is started, the gravestone in the top-right in Figure \ref{fig:obs_test_midspeedscroll} is taken as a reference point. The car is then accelerated to a speed of 5 the time it takes for the reference to reach the bottom of the screen shown in Figure \ref{fig:obs_test_midspeedscroll2} is found to be about 4 seconds.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/obs_test_midspeedscroll}
+	\caption{Calculating time for scenery to scroll past (top-right gravestone is reference point)}
+	\label{fig:obs_test_midspeedscroll} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/obs_test_midspeedscroll2}
+	\caption{Calculating time for scenery to scroll past (reference gravestone scrolling out of view)}
+	\label{fig:obs_test_midspeedscroll2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsection*{Testing}
+\subsubsection*{Obstacles scroll at max speed}
+The acceleration input is pressed until the car reaches max speed. The boulder at the top right of the screen is taken as a reference point. Figure \ref{fig:obs_test_maxspeedscroll2} shows that it took 1 seconds for the boulder to reach the bottom of the screen. Both tests also show scenery scrolling in, middle and scrolling out in the screen.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/obs_test_maxspeedscroll}
+	\caption{Calculating time for scenery to scroll past (top-right boulder is reference point)}
+	\label{fig:obs_test_maxspeedscroll} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/obs_test_maxspeedscroll2}
+	\caption{Calculating time for scenery to scroll past (only top can reference boulder can be seen)}
+	\label{fig:obs_test_maxspeedscroll2} 
+	\end{center}
+\end{figure}
 \clearpage
 
 %----------------------------------------------------------------------------------------

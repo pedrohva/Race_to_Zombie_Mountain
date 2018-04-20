@@ -309,7 +309,7 @@ bool update_speed_ctr() {
 	}
 
 	// How fast the screen scrolls (can be negative). Higher value the faster
-	int speed_rate = 2;
+	int speed_rate = -1;
 
 	// Check if we can update the game logic
 	if((MAX_SPEED - speed - speed_rate < speed_ctr) && (speed > 0) && (fuel > 0)) {
