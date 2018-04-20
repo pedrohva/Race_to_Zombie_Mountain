@@ -225,6 +225,11 @@ Warnings also appear on the dashboard to notify the player that the car is offro
 \end{lstlisting}
 The x-coordinate of the border between the dashboard and the playing area.
 \begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	#define DASHBOARD_SIZE	20
+\end{lstlisting}
+The width of the dashboard.
+\begin{lstlisting}[style=CStyle]
 	// zombiemountain.h
 	#define DASHBOARD_BORDER_CHAR	47
 \end{lstlisting}
@@ -288,20 +293,151 @@ Calculates how much time is left to finish refuelling. This is done by calculati
 \newline
 
 \subsection*{Testing}
-
+\subsubsection*{Stats are modified with gameplay}
+Two screenshots of the same gameplay are taken where the fuel is checked if it is decreased and the time,distance and score are increased.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.75\paperwidth]{images/dashboard_test_statschange}
+	\caption{A screenshot of the game as it starts}
+	\label{fig:dashboard_test_stats} 
+	\end{center}
+\end{figure}
+\newline
+Figure \ref{fig:dashboard_test_stats} shows the dashboard on the left side of the terminal with a border clearly separating it from the playing area. To achieve the second part of the test, the 'w' key was pressed 3 times to test if the speed is increased and the car was moved horizontally where necessary to avoid obstacles. 
+\newline
+The condition stat will be tested in the \emph{Collision} section and the refuelling warning and timer will be tested in the \emph{Fuel} section.  
+\newpage
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.75\paperwidth]{images/dashboard_test_statschange2}
+	\caption{A screenshot of the same game sessions as the figure above but 11 seconds into gameplay}
+	\label{fig:dashboard_test_stats2} 
+	\end{center}
+\end{figure}
+Figures \ref{fig:dashboard_test_stats} and \ref{fig:dashboard_test_stats2} show that the stats are represented in the dashboard and change when supposed to. The \emph{OFFROAD} warning also appears when the car moves beyond the border of the road. 
+\newline
+Figure \ref{fig:dashboard_test_fuelwarning} shows the low fuel warning appears when fuel falls below 25\%.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/dashboard_test_fuelwarning}
+	\caption{Low Fuel warning appearing when fuel is below 1/4 the maximum}
+	\label{fig:dashboard_test_fuelwarning} 
+	\end{center}
+\end{figure}
 \clearpage
 
 %----------------------------------------------------------------------------------------
-%	RACE CAR
+%	RACE CAR AND HORIZONTAL MOVEMENT
 %----------------------------------------------------------------------------------------
-\section{Race Car}
+\section{Race Car and Horizontal Movement}
+The race car is a sprite 8 units wide and 5 units tall. This sprite is always stuck in the same position with the illusion of movement given by the obstacles being moved downwards. The speed at which the obstacles move is proportional to the speed setting.
 
-\clearpage
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.h
+	#define PLAYER_WIDTH	8
+\end{lstlisting}
+The width of the car sprite.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.h
+	#define PLAYER_HEIGHT	5
+\end{lstlisting}
+The height of the car sprite
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define INPUT_MOVE_LEFT		'a'
+\end{lstlisting}
+The keyboard input that will make the car turn left.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define INPUT_MOVE_RIGHT	'd'
+\end{lstlisting}
+The keyboard input that will make the car turn right
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	sprite_id player;
+\end{lstlisting}
+The car sprite which the player controls.
+\newline
 
-%----------------------------------------------------------------------------------------
-%	HORIZONTAL MOVEMENT
-%----------------------------------------------------------------------------------------
-\section{Horizontal Movement}
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void setup_player_car();
+\end{lstlisting}
+Place the car sprite in the middle of the road, 2 units above the bottom of the screen. Also sets the car condition to 100\% and fuel to max.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void handle_input();
+\end{lstlisting}
+Get the next character from the input buffer. If it is a valid key, call the specific input handler. 
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void handle_movement_input(int key);
+\end{lstlisting}
+Checks if the \emph{key} variable wants the car to turn left or right. Will then check if the car will be in the bounds of the playing area, if it'll collide laterally with any obstacle and if the speed is above zero. If all three checks pass, then the \emph{sprite\_move()} function is called.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	bool in_bounds(int x, int y)
+\end{lstlisting}
+Checks if the \emph{(x,y)} coordinate is in bounds of the playing area, returns true if so.
+\newline
+\newpage
+
+\subsection*{Testing}
+\subsubsection*{Car doesn't move when speed is 0}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_nospeed}
+	\caption{Car in the middle of the road with speed equal zero}
+	\label{fig:car_test_nospeed} 
+	\end{center}
+\end{figure}
+The following inputs were pressed and the result shown in Figure \ref{fig:car_test_nospeed}: "a,d,a,d"
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_nospeed2}
+	\caption{Results after attempting to move horizontally with speed equal zero}
+	\label{fig:car_test_nospeed2} 
+	\end{center}
+\end{figure}
+
+\subsubsection*{Car moves left and right}
+From the position in Figure \ref{fig:car_test_nospeed2}, the following inputs were pressed "w,a,a,a".
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_moveleft}
+	\caption{Moving the car left with speed equal 1}
+	\label{fig:car_test_moveleft} 
+	\end{center}
+\end{figure}
+\newline
+After the car is reset due to the inetivable collision in Figure \ref{fig:car_test_moveleft}, the following inputs were pressed "w,d,d,d". 
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_moveright}
+	\caption{Moving the car right with speed equal 1 (car was stopped to grab screenshot)}
+	\label{fig:car_test_moveright} 
+	\end{center}
+\end{figure}
+\newpage
+
+\subsubsection*{Car stays in bounds}
+The car was moved to both extremes of the playing area with the lateral movement input held down. Figure \ref{fig:car_test_rightborder} shows the result of holding down 'd' and Figure \ref{fig:car_test_leftborder} shows the result of holding down 'a'.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_rightborder}
+	\caption{Result of holding down 'd' when next to the right border}
+	\label{fig:car_test_rightborder} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.667\paperwidth]{images/car_test_leftborder}
+	\caption{Result of holding down 'a' when next to the left border}
+	\label{fig:car_test_leftborder} 
+	\end{center}
+\end{figure}
 
 \clearpage
 
@@ -309,6 +445,62 @@ Calculates how much time is left to finish refuelling. This is done by calculati
 %	ACCELERATION AND SPEED
 %----------------------------------------------------------------------------------------
 \section{Acceleration and Speed}
+The car can accelerates and decelerates with the 'w' and 's' keys. The speed can never go negative or higher than 10. When the car is offroad (indicated by the \emph{OFFROAD} warning in the dashboard) the speed is limited to a maximum of 3.
+
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define INPUT_ACCELERATE	'w'	
+\end{lstlisting}
+The character input to accelerate the car.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define INPUT_DECELERATE	's'
+\end{lstlisting}
+The character input to decelerate the car.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define MAX_SPEED			10
+\end{lstlisting}
+The maximum speed the car can reach.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define MAX_SPEED_OFFROAD	3
+\end{lstlisting}
+The maximum speed the car can reach while offroad.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define SPEED_INTERVAL	87
+\end{lstlisting}
+Used to set the reset time for \emph{speed\_timer}.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	#define LOOP_INTERVAL	17
+\end{lstlisting}
+Used with \emph{SPEED\_INTERVAL} and \emph{speed\_timer} to decide when to increment \emph{speed\_ctr}.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int speed;
+\end{lstlisting}
+The speed of the player, this affects how fast the obstacles scroll down.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int speed_ctr;
+\end{lstlisting}
+Is compared with the current speed to decide when to update the main game logic (increasing distance, making obstacles scroll, etc.).
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	timer_id speed_timer;
+\end{lstlisting}
+This timer controls when \emph{speed\_ctr} is increased.
+\newpage
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void setup_player_car();
+\end{lstlisting}
+Place the car sprite in the middle of the road, 2 units above the bottom of the screen. Also sets the car condition to 100\% and fuel to max.
 
 \clearpage
 

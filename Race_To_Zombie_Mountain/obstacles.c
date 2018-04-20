@@ -56,7 +56,7 @@ void hazard_reset(int index) {
 	char* image = get_image(id, HAZARD, &width, &height);
 
 	// Move the hazard above the screen a random amount
-	int y = 0 - height - (rand() % 60);
+	int y = 0 - height - (rand() % 30);
 
 	// Choose a x coordinate between the road limits
 	int min_x = road_x_coords[0] + 1;
@@ -257,7 +257,7 @@ void init_obs() {
 
     // Init Terrain
     // Decide on maximum number of terrain obstacles that can appear
-	max_terrain_obs = 8 + ((screen_width()-80)/5) + ((screen_height()-24)/5);
+	max_terrain_obs = 14 + ((screen_width()-80)/5) + ((screen_height()-24)/5);
 	terrain = malloc(max_terrain_obs * sizeof(sprite_id));
 
     // Init road

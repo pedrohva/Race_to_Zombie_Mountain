@@ -22,8 +22,6 @@
 
 // Define the direction the road is turning.
 #define ROAD_STRAIGHT	1
-#define ROAD_RIGHT		2
-#define ROAD_LEFT		3
 
 // Setup all of the images and properties to the arrays
 void imagemngr_init();

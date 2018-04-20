@@ -129,6 +129,20 @@ void reset_player_location() {
 }
 
 /**
+ * Place the player's car sprite in the middle of the road and gives it full health
+ **/
+void setup_player_car() {
+	int y = screen_height() - PLAYER_HEIGHT - 2;
+	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
+	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
+	car_condition = 100;
+
+	// Setup fuel settings 
+	fuel = MAX_FUEL;
+	refuelling = false;
+}
+
+/**
  * Resets and setups the dashboard to display in a variety of window sizes
  */
 void setup_dashboard() {
@@ -145,15 +159,8 @@ void setup_game_state() {
 	// Get all current highscores from the highscore file
 	get_hscores();
 	
-	// Setup the car at the bottom of the screen, middle of road
-	int y = screen_height() - PLAYER_HEIGHT - 2;
-	int x = (ROAD_WIDTH / 2) + road_x_coords[y] - (PLAYER_WIDTH/2) + 1;
-	player = sprite_create(x, y, PLAYER_WIDTH, PLAYER_HEIGHT, get_car_image());
-	car_condition = 100;
-
-	// Setup fuel settings 
-	fuel = MAX_FUEL;
-	refuelling = false;
+	// Setup the car at the bottom of the screen
+	setup_player_car();
 
 	// Initialise the speed settings
 	speed = 0;
@@ -291,11 +298,10 @@ void update_start_screen() {
 }
 
 /**
- * Code that updates the logic of the game relevant to the Game state
+ * Updates the speed_ctr if the timer has passed a certain limit. 
+ * Will return true if it is time to update the game logic
  **/
-void update_game_screen() {
-	handle_input();
-
+bool update_speed_ctr() {
 	// Update the speed counter. We also check if it would update while we pause the execution with
 	// the loop timer. Added 10 to the loop interval in case update and draw takes 17 ms to execute
 	if(speed_timer->milliseconds > (SPEED_INTERVAL - LOOP_INTERVAL - 10)) {
@@ -305,42 +311,79 @@ void update_game_screen() {
 	// How fast the screen scrolls (can be negative). Higher value the faster
 	int speed_rate = 2;
 
-	// Decides when to update the game (if enough time has speed depending on the speed)
+	// Check if we can update the game logic
 	if((MAX_SPEED - speed - speed_rate < speed_ctr) && (speed > 0) && (fuel > 0)) {
-		even_stripe = !even_stripe;
+		return true;
+	}
 
-		distance_counter++;
-		// Updates the distance if enough ticks have passed to cover 1 meter
-		if(distance_counter > 5) {
-			distance_travelled++;
-			distance_counter = 0;
-			fuel -= 2;
+	return false;
+}
+
+/**
+ * Changes the speed to zero, reduces car condition and resets the player to the middle of the road
+ **/
+void handle_collision() {
+	speed = 0;
+	fuel = MAX_FUEL;
+	car_condition -= 20;
+	if(car_condition <= 0) {
+		change_state(GAME_OVER_SCREEN);
+	}
+	reset_player_location();
+	// Remove any hazards in the way 
+	for(int i=0; i<max_hazards; i++) {
+		if(check_sprite_collided(player, hazards[i])) {
+			hazard_reset(i);
 		}
+	}
+}
 
+/**
+ * Updates the distance travelled
+ **/
+void update_distance() {
+	distance_counter++;
+	// Updates the distance if enough ticks have passed to cover 1 meter
+	if(distance_counter > 5) {
+		distance_travelled++;
+		distance_counter = 0;
+		fuel -= 2;
+	}
+}
+
+/**
+ * Updates the score based on the distance travelled, car condition and time
+ **/
+void update_score() {
+	// Update the score
+	score = ((distance_travelled * 10) - (car_condition)) - (get_current_time() - game_start_time) + 90;
+	if(score <= 0) {
+		score = 1;
+	} else if(score > 999999) {
+		score = 999999;
+	}
+}
+
+/**
+ * Code that updates the logic of the game relevant to the Game state
+ **/
+void update_game_screen() {
+	handle_input();
+
+	// Decides when to update the game (if enough time has speed depending on the speed)
+	if(update_speed_ctr()) {
+		even_stripe = !even_stripe;
+		update_distance();
 		// Check if the car has collided with an obstacle
 		if(check_collision(player)) {
 			// Check if the car has collided with a fuel station
 			if(check_sprite_collided(player,fuel_station)) {
 				change_state(GAME_OVER_SCREEN);
 			} else {
-				speed = 0;
-				fuel = MAX_FUEL;
-				car_condition -= 20;
-				if(car_condition <= 0) {
-					change_state(GAME_OVER_SCREEN);
-				}
-				reset_player_location();
-				// Remove any hazards in the way 
-				for(int i=0; i<max_hazards; i++) {
-					if(check_sprite_collided(player, hazards[i])) {
-						hazard_reset(i);
-					}
-				}
+				handle_collision();
 			}
 		}
-
 		update_obs();
-
 		speed_ctr = 0;
 	}
 
@@ -357,13 +400,7 @@ void update_game_screen() {
 		change_state(GAME_OVER_SCREEN);
 	}
 
-	// Update the score
-	score = ((distance_travelled * 10) - (car_condition)) - (get_current_time() - game_start_time) + 90;
-	if(score <= 0) {
-		score = 1;
-	} else if(score > 999999) {
-		score = 999999;
-	}
+	update_score();
 
 	// Check if the player has run out of fuel
 	if(fuel <= 0) {
