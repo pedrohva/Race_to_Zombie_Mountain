@@ -27,12 +27,12 @@ void terrain_reset(int index) {
 		x = rand() % (max_x + 1 - min_x) + min_x;
 	}
 
-	// Place the terrain just above the screen so it scrolls as into view as soon as reset
-	int y = 0 - height;
+	// Place the terrain above the screen a random amount
+	int y = 0 - height - (rand() % 60);
 
 	// Create a temporary sprite of the new terrain to check for collision
 	sprite_id temp_sprite = sprite_create(x, y, width, height, image);
-	// We won't reset the terrain unless there will be no collision (try again next tick)
+	// We won't reset the terrain unless there will be no collision
 	if(!check_collision(temp_sprite)) {
 		// Reset the terrain
 		terrain[index]->x = x;
@@ -56,7 +56,7 @@ void hazard_reset(int index) {
 	char* image = get_image(id, HAZARD, &width, &height);
 
 	// Move the hazard above the screen a random amount
-	int y = 0 - height - rand() % 25;
+	int y = 0 - height - (rand() % 60);
 
 	// Choose a x coordinate between the road limits
 	int min_x = road_x_coords[0] + 1;
@@ -140,9 +140,14 @@ void setup_terrain() {
 	}
 
     // Reset all of the terrain obstacles so that they don't collide
-    for(int i=0; i<max_terrain_obs; i++) {
-		if(check_collision(terrain[i])) {
-			terrain_reset(i);
+    bool collided = true;
+	while(collided) {
+		collided = false;
+		for(int i=0; i<max_terrain_obs; i++) {
+			if(check_collision(terrain[i])) {
+				collided = true;
+				terrain_reset(i);
+			}
 		}
 	}
 }
@@ -155,9 +160,15 @@ void setup_hazards() {
 		hazard_create(i);
 	}
 
-    for(int i=0; i<max_hazards; i++) {
-		if(check_collision(hazards[i])) {
-			hazard_reset(i);
+	// Reset all of the hazard obstacles so that they don't collide
+    bool collided = true;
+	while(collided) {
+		collided = false;
+		for(int i=0; i<max_hazards; i++) {
+			if(check_collision(hazards[i])) {
+				collided = true;
+				hazard_reset(i);
+			}
 		}
 	}
 }
@@ -305,7 +316,15 @@ void update_fuel_station() {
 			x = road_x_coords[0] + ROAD_WIDTH + 1;
 		}
 
+		// Move the fuel station to the new location
 		sprite_move_to(fuel_station, x, y);
+
+		// Reset any terrain that might be on the way
+		for(int i=0; i<max_terrain_obs; i++) {
+			if(check_sprite_collided(fuel_station, terrain[i])) {
+				terrain_reset(i);
+			}
+		}
 	}
 }
 
@@ -389,15 +408,21 @@ bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2) {
 bool check_collision(sprite_id sprite) {
 	// Iterate through the terrain to see if there was a collision
 	for(int i=0; i<max_terrain_obs; i++) {
-		if(check_sprite_collided(sprite,terrain[i])) {
-			return true;
+		// We don't want to check if it is colliding with itself
+		if(!sprites_equal(sprite, terrain[i])) {
+			if(check_sprite_collided(sprite,terrain[i])) {
+				return true;
+			}
 		}
 	}
 
 	// Iterate through the hazards to see if there was a collision
 	for(int i=0; i<max_hazards; i++) {
-		if(check_sprite_collided(sprite,hazards[i])) {
-			return true;
+		// We don't want to check if it is colliding with itself
+		if(!sprites_equal(sprite, hazards[i])) {
+			if(check_sprite_collided(sprite,hazards[i])) {
+				return true;
+			}
 		}
 	}
 

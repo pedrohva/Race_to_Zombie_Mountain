@@ -24,7 +24,7 @@
 #define MAX_SPEED_OFFROAD	3
 
 // Maximum amount of fuel the car has
-#define MAX_FUEL			200
+#define MAX_FUEL			100
 
 // Input keys
 #define INPUT_MOVE_LEFT		'a'

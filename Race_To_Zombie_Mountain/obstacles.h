@@ -97,4 +97,9 @@ bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2);
  **/
 void hazard_reset(int index);
 
+/**
+ * Moves a terrain to the top of the screen and changes the terrain type
+ **/
+void terrain_reset(int index);
+
 #endif

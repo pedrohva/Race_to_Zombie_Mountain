@@ -309,13 +309,12 @@ void update_game_screen() {
 	if((MAX_SPEED - speed - speed_rate < speed_ctr) && (speed > 0) && (fuel > 0)) {
 		even_stripe = !even_stripe;
 
-		fuel--;
-
 		distance_counter++;
 		// Updates the distance if enough ticks have passed to cover 1 meter
 		if(distance_counter > 5) {
 			distance_travelled++;
 			distance_counter = 0;
+			fuel -= 2;
 		}
 
 		// Check if the car has collided with an obstacle
@@ -562,6 +561,8 @@ void draw_dashboard() {
 	if(refuelling) {
 		draw_string(2, 13, "REFUELLING");
 		draw_double(2, 14, refuel_time_left());
+	} else if(fuel < (MAX_FUEL/4)) {
+		draw_string(2, 13, "LOW FUEL");
 	}
 }
 
