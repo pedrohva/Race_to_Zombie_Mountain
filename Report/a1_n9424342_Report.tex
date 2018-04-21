@@ -561,20 +561,19 @@ This test was set up by having the car reach speed 10. Afterwards, the following
 %	SCENERY AND OBSTACLES
 %----------------------------------------------------------------------------------------
 \section{Scenery and Obstacles}
-In this game, obstacles can be separated into three categories
+In this game, obstacles can be separated into three categories.  Fuel depots have additional functionality and are covered in the section \emph{Fuel Depot}. 
 \begin{itemize}
  	\item Terrain (spawns offroad)
  	\item Road Hazards (limited to the road)
 	\item Fuel Depots
 \end{itemize}
-Terrain and Road Hazards behave the same and are only separated by where they can spawn. Fuel depots have additional functionality and are covered in the section \emph{Fuel Depot}. 
 
 \subsection*{Globals}
 \begin{lstlisting}[style=CStyle]
 	// obstacles.h
 	int max_terrain_obs;	
 \end{lstlisting}
-The maximum amount of terrain obstacles that can appear at one time. This is largely dependant on the screen size.
+The maximum amount of terrain obstacles that can appear at one time. Dependant on the screen size.
 \begin{lstlisting}[style=CStyle]
 	// obstacles.h
 	sprite_id *terrain;
@@ -590,7 +589,38 @@ The maximum amount of road hazards that can appear at one time.
 	sprite_id *hazards;
 \end{lstlisting}
 An array that holds the ids of all sprites representing road hazards.
-\newline
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.h
+	#define TERRAIN     0
+	#define HAZARD      1
+\end{lstlisting}
+Used to define the different types of obstacles.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.h
+	#define NUM_TERRAIN_TYPES	3
+	#define TERRAIN_BOULDER		0
+	#define TERRAIN_TREE 			1
+	#define TERRAIN_GRAVE			2
+\end{lstlisting}
+Used to differentiate between the different types of terrain.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.h
+	#define NUM_HAZARD_TYPES	2
+	#define HAZARD_SPIKES			0
+	#define HAZARD_TRIANGLE		1
+\end{lstlisting}
+Used to differentiate between the different types of road hazards.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	char* terrain_image[NUM_TERRAIN_TYPES];
+	int terrain_width[NUM_TERRAIN_TYPES];
+	int terrain_height[NUM_TERRAIN_TYPES];
+	char* hazards_image[NUM_HAZARD_TYPES];
+	int hazards_width[NUM_HAZARD_TYPES];
+	int hazards_height[NUM_HAZARD_TYPES];
+\end{lstlisting}
+Holds information about a sprite's bitmap for each different type of terrain and hazard.
+\newpage
 
 \subsection*{Functions}
 \begin{lstlisting}[style=CStyle]
@@ -613,7 +643,6 @@ Fills the terrain array with sprites and makes sure none are spawned on top of e
 	void terrain_create(int index);
 \end{lstlisting}
 Called by \emph{setup\_terrain()}. Chooses a type of terrain and a random valid location for it. Then proceeds to add the sprite id of that terrain to the appropriate array.
-\newpage
 \begin{lstlisting}[style=CStyle]
 	// obstacles.c
 	void terrain_reset(int index);
@@ -644,6 +673,7 @@ Moves the hazard corresponding to the index given a randomised distance above th
 	void update_hazards();
 \end{lstlisting}
 Steps all of the hazard sprites in the hazards array and then checks if any have gone out of bounds below the screen. Will then attempt to reset the hazard with \emph{hazard\_reset()}.
+\newpage
 \begin{lstlisting}[style=CStyle]
 	// obstacles.c
 	void update_obs();
@@ -664,6 +694,32 @@ Call \emph{sprite\_draw()} for each terrain in the terrain array.
 	void draw_hazards();
 \end{lstlisting}
 Call \emph{sprite\_draw()} for each hazard in the hazards array.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	void imagemngr_init();
+\end{lstlisting}
+Call the appropriate init function for each type of obstacle.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	void hazards_init();
+\end{lstlisting}
+Add all of the hazard bitmap information to the appropriate arrays.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	void terrain_init();
+\end{lstlisting}
+Add all of the terrain bitmap information to the appropriate arrays.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	void add_image(int id, char* image, int width, int height, int type);
+\end{lstlisting}
+Add the bitmap information of a specific sprite to the appropriate array (defined by the \emph{type} variable).
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	char* get_image(int id, int type, int* width, int* height);
+\end{lstlisting}
+Get the bitmap and its properties from the appropriate array defined by the \emph{type} variable.
+
 \newpage
 
 \subsection*{Testing}
@@ -684,9 +740,8 @@ After the game is started, the gravestone in the top-right in Figure \ref{fig:ob
 	\end{center}
 \end{figure}
 \newpage
-\subsection*{Testing}
 \subsubsection*{Obstacles scroll at max speed}
-The acceleration input is pressed until the car reaches max speed. The boulder at the top right of the screen is taken as a reference point. Figure \ref{fig:obs_test_maxspeedscroll2} shows that it took 1 seconds for the boulder to reach the bottom of the screen. Both tests also show scenery scrolling in, middle and scrolling out in the screen.
+The acceleration input is pressed until the car reaches max speed. The boulder at the top right of the screen is taken as a reference point. Figure \ref{fig:obs_test_maxspeedscroll2} shows that it took 1 second for the boulder to reach the bottom of the screen. Both tests also show scenery scrolling in, middle and scrolling out in the screen.
 \begin{figure}[!ht]
 	\begin{center}
 	\includegraphics[width=0.63\paperwidth]{images/obs_test_maxspeedscroll}
@@ -707,14 +762,183 @@ The acceleration input is pressed until the car reaches max speed. The boulder a
 %	FUEL DEPOT
 %----------------------------------------------------------------------------------------
 \section{Fuel Depot}
+The Fuel Depot is a type of obstacle that refuels the player's car if it is parked for 3 seconds directly next to it. To smooth out the gameplay, the player will automatically park the car if they're travelling at a speed of 2 or less. A collision with the fuel depot will immediately end the game for the player, regardless of the car's condition.
 
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	#define FUEL_STATION_DELAY_DIST	30
+\end{lstlisting}
+The minimum distance which the next fuel depot can appear after the old one leaves the playing area. 
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	#define FUEL_STATION_VARIANCE	15
+\end{lstlisting}
+The variance in distance that the next fuel depot will spawn at. When we combine with \emph{FUEL\_STATION\_DELAY\_DIST}, we know that a fuel depot will spawn between 30 and 45 units of distance above the screen after the old depot leaves the playing area. 
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	sprite_id fuel_station;
+\end{lstlisting}
+The sprite which represents the fuel depot.
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void setup_fuel_station();
+\end{lstlisting}
+Creates the fuel depot sprite and places it in its initial position. Will also randomly choose a random side of the road to place it in. 
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void update_fuel_station();
+\end{lstlisting}
+Will step the sprite for the fuel depot and then check if it went out of bounds. If it has, it will reset the fuel station to a random location (limted by the globals) above the playing area and a random side of the road. Will then reset any terrain that was in the way to avoid overlap. 
+\newline
+
+\newpage
+\subsection*{Testing}
+\subsubsection*{Fuel Depot scrolls at intermediate speed}
+The game is played with the car kept at a constant speed of 5. Figures \ref{fig:fueldepot_test_midspeed} and \ref{fig:fueldepot_test_midspeed2} show that it took the fuel depot about three seconds to scroll past the playing area.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fueldepot_test_midspeed}
+	\caption{Calculating time for fuel depot to scroll past at speed of 5}
+	\label{fig:fueldepot_test_midspeed} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fueldepot_test_midspeed2}
+	\caption{Calculating time for fuel depot to scroll past at speed of 5}
+	\label{fig:fueldepot_test_midspeed2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Fuel Depot scrolls at maximum speed}
+The game is played with the car kept at a constant speed of 10. Figures \ref{fig:fueldepot_test_maxspeed} and \ref{fig:fueldepot_test_maxspeed2} show that it took the fuel depot about one second to scroll past the playing area. Both of these tests show that the fuel depot is scrolling at the same rate as the rest of the scenery and obstacles.  As seen in Figures \ref{fig:car_test_rightborder} and \ref{fig:car_test_leftborder}, the fuel depot can also spawn on any side of the road.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fueldepot_test_maxspeed}
+	\caption{Calculating time for fuel depot to scroll past at speed of 5}
+	\label{fig:fueldepot_test_maxspeed} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fueldepot_test_maxspeed2}
+	\caption{Calculating time for fuel depot to scroll past at speed of 10}
+	\label{fig:fueldepot_test_maxspeed2} 
+	\end{center}
+\end{figure}
 \clearpage
 
 %----------------------------------------------------------------------------------------
 %	FUEL
 %----------------------------------------------------------------------------------------
 \section{Fuel}
+The car start with a fuel tank which decreases as it moves. The faster it moves, the faster the fuel is depleted. After parking next to a fuel depot for 3 seconds, the fuel tank is refilled to max. The fuel tank can also be refilled to max after a collision with an obstacle. 
 
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int fuel;
+\end{lstlisting}
+The current amount of fuel available to the player.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	bool refuelling;
+\end{lstlisting}
+Represents whether the car is currently refuelling.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	timer_id refuel_timer;
+\end{lstlisting}
+A timer that is used to verify that the car has remained next to the fuel depot for 3 seconds.
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void check_refuel();
+\end{lstlisting}
+Checks if the car meets all of the criteria to begin refuelling (next to a fuel station and travelling at a speed of 2 or less). Then switches the \emph{refuelling} variable to true, sets speed to 0 and starts \emph{refuel\_timer}.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void refuel();
+\end{lstlisting}
+Called every tick of the game loop. If the car isn't already refuelling, call the \emph{check\_refuel()}. Otherwise it will make sure the car's speed has remained at 0. If the \emph{refuel\_timer} has expirer, it'll refill the fuel tank and release the car at a speed of 1.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_screen();
+\end{lstlisting}
+Will check if the fuel is above 0 and will give the game over message when the fuel tank is empty.
+
+\newpage
+\subsection*{Testing}
+\subsubsection*{Fuel loss moving at intermediate speed}
+The car is kept at a constant speed of 5 for three seconds. Figures \ref{fig:fuel_test_lossmidspeed} and \ref{fig:fuel_test_lossmidspeed2} show that the car loses 8 fuel units after 3 seconds at intermediate speed. Figure \ref{fig:speed_testdecel0} also shows that the car doesn't lose fuel while remaining stationary.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_lossmidspeed}
+	\caption{Calculating fuel loss at intermediate speed}
+	\label{fig:fuel_test_lossmidspeed} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_lossmidspeed2}
+	\caption{Calculating fuel loss at intermediate speed}
+	\label{fig:fuel_test_lossmidspeed2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Fuel loss moving at max speed}
+The car is kept at a constant speed of 10 for three seconds. Figures \ref{fig:fuel_test_lossmaxspeed} and \ref{fig:fuel_test_lossmaxspeed2} show that the car loses 30 fuel units after 3 seconds at maximum speed. 
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_lossmaxspeed}
+	\caption{Calculating fuel loss at max speed}
+	\label{fig:fuel_test_lossmaxspeed} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_lossmaxspeed2}
+	\caption{Calculating fuel loss at max speed}
+	\label{fig:fuel_test_lossmaxspeed2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Refuelling}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_refuelapproach}
+	\caption{Car approaching the fuel station}
+	\label{fig:fuel_test_refuelapproach} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_refuelbegin}
+	\caption{Car is stopped automatically and refuelling begins}
+	\label{fig:fuel_test_refuelbegin} 
+	\end{center}
+\end{figure}
+\newpage
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_refuelend}
+	\caption{Time has passed and the player is waiting for refuel to finish}
+	\label{fig:fuel_test_refuelend} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/fuel_test_refuelrelease}
+	\caption{Refuelling ended, fuel tank is topped up and the car is released at a speed of 1}
+	\label{fig:fuel_test_refuelrelease} 
+	\end{center}
+\end{figure}
 \clearpage
 
 
