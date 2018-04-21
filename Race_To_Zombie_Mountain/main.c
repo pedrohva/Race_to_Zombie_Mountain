@@ -167,6 +167,7 @@ void setup_game_state() {
 	speed_ctr = 0;
 
 	score = 0;
+	game_over_loss = false;
 
 	game_start_time = get_current_time();
 	distance_counter = 0;
@@ -327,6 +328,7 @@ void handle_collision() {
 	fuel = MAX_FUEL;
 	car_condition -= 20;
 	if(car_condition <= 0) {
+		game_over_loss = true;
 		change_state(GAME_OVER_SCREEN);
 	}
 	reset_player_location();
@@ -378,6 +380,7 @@ void update_game_screen() {
 		if(check_collision(player)) {
 			// Check if the car has collided with a fuel station
 			if(check_sprite_collided(player,fuel_station)) {
+				game_over_loss = true;
 				change_state(GAME_OVER_SCREEN);
 			} else {
 				handle_collision();
@@ -397,6 +400,7 @@ void update_game_screen() {
 	
 	// Check if the player has won the game
 	if((sprite_y(player) + sprite_height(player)) < sprite_y(finish_line)) {
+		game_over_loss = false;
 		change_state(GAME_OVER_SCREEN);
 	}
 
@@ -404,6 +408,7 @@ void update_game_screen() {
 
 	// Check if the player has run out of fuel
 	if(fuel <= 0) {
+		game_over_loss = true;
 		change_state(GAME_OVER_SCREEN);
 	}
 }
@@ -617,7 +622,11 @@ void draw_game_screen() {
  * Draw the game over screen
  **/
 void draw_game_over_screen() {
-	draw_center_text("GAME OVER", screen_height() / 2);
+	if(game_over_loss) {
+		draw_center_text("GAME OVER", screen_height() / 2);
+	} else {
+		draw_center_text("YOU WIN!", screen_height() / 2);
+	}
 	char score_text[50];
 	sprintf(score_text, "Your score was: %d", score);
 	draw_center_text(score_text, (screen_height() / 2) + 1);

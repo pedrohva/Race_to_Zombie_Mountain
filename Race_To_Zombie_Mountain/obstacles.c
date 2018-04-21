@@ -421,7 +421,7 @@ bool check_collision(sprite_id sprite) {
 		// We don't want to check if it is colliding with itself
 		if(!sprites_equal(sprite, hazards[i])) {
 			if(check_sprite_collided(sprite,hazards[i])) {
-				//return true;
+				return true;
 			}
 		}
 	}

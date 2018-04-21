@@ -65,7 +65,7 @@ void save_scores() {
 /**
  * Reads the arrays containing the highscores and prints the information to the user
  **/
- void draw_hscores() {
+void draw_hscores() {
     // Decide how many highscores we can actually draw
     int min_y = 4;
     int max_y = screen_height() - 3;

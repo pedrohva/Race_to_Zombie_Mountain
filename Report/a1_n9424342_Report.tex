@@ -110,16 +110,9 @@
 %	EXECUTIVE SUMMARY
 %----------------------------------------------------------------------------------------
 \section{Executive Summary}
-
-\clearpage
-
-%----------------------------------------------------------------------------------------
-%	PROGRAM OVERVIEW
-%----------------------------------------------------------------------------------------
-\section{Program Overview}
-Things to talk about
+The obejctive of this report is to give a brief explanation of how the game \emph{Race to Zombie Mountain} was implemented. It also includes multiple tests that serve to verify the claims made in this report. 
 \newline
-change\_state
+A score and highscore table system were developed as an extension to the basic game. The highscore table can hold information about the score and the name of the player for the top 100 scores. This data is held on a local file called \emph{highscores}. 
 \clearpage
 
 %----------------------------------------------------------------------------------------
@@ -939,14 +932,83 @@ The car is kept at a constant speed of 10 for three seconds. Figures \ref{fig:fu
 	\label{fig:fuel_test_refuelrelease} 
 	\end{center}
 \end{figure}
-\clearpage
 
+\clearpage
 
 %----------------------------------------------------------------------------------------
 %	DISTANCE TRAVELLED
 %----------------------------------------------------------------------------------------
 \section{Distance Travelled}
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int distance_counter;
+\end{lstlisting}
+A counter that decides when to increment the distance travelled by the car. Currently, the distance is incremented after the scenery scrolls for 5 ticks.
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	int distance_travelled;
+\end{lstlisting}
+Represents the units of distance travelled by the car since the game started. 
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	sprite_id finish_line;
+\end{lstlisting}
+The sprite that represents the finish line.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	#define FINISH_LINE_DIST	500
+\end{lstlisting}
+How many units above the screen the finish line will be spawned (not to be confused with the distance it'll be spawned at). 
+\newline
 
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_distance();
+\end{lstlisting}
+Called everytime the car moves. It'll increment the \emph{distance\_counter} and increment the distance travelled when the counter passes a threshold.
+\begin{lstlisting}[style=CStyle]
+	// imagemngr.c
+	char* get_finish_line_image();
+\end{lstlisting}
+Returns the bitmap which represens the finish line.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	void setup_finish_line();
+\end{lstlisting}
+Creates the finish line sprite and spawns it above the screen.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_screen();
+\end{lstlisting}
+Will check if the player has crossed the finish line sprite and if so, change to the game over screen. 
+\newline
+
+\subsection*{Testing}
+\subsubsection*{Distance covered proportional to speed}
+Figure \ref{fig:speed_testdecel0} shows that the distance counter is not incremented when the car is at a speed of 0.
+\newline
+Figure \ref{fig:speed_midspeed} shows the car travels 4 units in three seconds when the speed is 5.
+\newline
+Figure \ref{fig:speed_maxspeed} shows that the car travels 10 units in three seconds when the speed is 10. 
+\newpage
+\subsubsection*{Game finishes when car crosses the finish line}
+The game was played normally and a screenshot was taken just as the player crossed the finish line. Figure \ref{fig:finishline_test_win2} shows what the screen looks like the next frame.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/finishline_test_win}
+	\caption{Crossing the finish line during normal gameplay}
+	\label{fig:finishline_test_win} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/finishline_test_win2}
+	\caption{The next frame after crossing the finish line}
+	\label{fig:finishline_test_win2} 
+	\end{center}
+\end{figure}
 \clearpage
 
 
@@ -954,6 +1016,107 @@ The car is kept at a constant speed of 10 for three seconds. Figures \ref{fig:fu
 %	COLLISION
 %----------------------------------------------------------------------------------------
 \section{Collision}
+Collision uses simple bounding box detection. The car is reset and the condition reduced if the car hits an obstacle head on. The car's horizontal movement is stopped if it tries to move into an obstacle. 
+
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.h
+	int car_condition;
+\end{lstlisting}
+The only global added by this section. Collision detection makes use mostly of globals already implemented when the scenery is created. 
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	bool check_collision(sprite_id sprite);
+\end{lstlisting}
+Iterates through every obstacle in the game and checks if the sprite passed to this function collides with any of therm.
+\begin{lstlisting}[style=CStyle]
+	// obstacles.c
+	bool check_sprite_collided(sprite_id sprite1, sprite_id sprite2);
+\end{lstlisting}
+Checks if the two sprites passed to this function collide with each other.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_screen();
+\end{lstlisting}
+Will check if the player has collided with any object every time the car moves. Will also check if the car has collided with a fuel depot and throw the game over dialogue if it has.
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void handle_collision();
+\end{lstlisting}
+When it's found that the player has collided with an object that is not the fuel depot, this function will reset the location of the player and clear any hazards on the way while also reducing the car's condition nad changing to the game over screen if it reaches 0.
+\newpage
+
+\subsection*{Testing}
+\subsubsection*{Head on collision with road hazards}
+The car is moved head on into a collision with a road hazard and the result screenshotted. As there were no hazards blocking the path of the car when it reset, no obstacles were required to be reset.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon}
+	\caption{The player a few frames before crashing into a road hazard}
+	\label{fig:collision_test_headon} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon2}
+	\caption{The player immediately after crashing into a road hazard}
+	\label{fig:collision_test_headon2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Head on collision with terrain}
+The car is moved into a collision course with a piece of terrain. The resulting screen in Figure \ref{fig:collision_test_headon_terrain2} shows that the triangle hazard had to be reset in order for the car to be placed in its starting location.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon_terrain}
+	\caption{The player a few frames before crashing into terrain}
+	\label{fig:collision_test_headon_terrain} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon_terrain2}
+	\caption{The player immediately after crashing into terrain}
+	\label{fig:collision_test_headon_terrain2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Head on collision with fuel depot}
+The car is moved into a collision course with a piece of terrain. The resulting screen in Figure \ref{fig:collision_test_headon_terrain2} shows that the triangle hazard had to be reset in order for the car to be placed in its starting location.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon_depot}
+	\caption{The player a few frames before crashing into a fuel depot}
+	\label{fig:collision_test_headon_depot} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_headon_depot2}
+	\caption{The screen that shows straight after the player crashes into a fuel depot}
+	\label{fig:collision_test_headon_depot2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Side collision}
+This test involved attempting to crash into an obstacle sideways. In Figure \ref{fig:collision_test_side} the car was moved next to the tree and the following input commands were given - "a,a,a". For Figure \ref{collision_test_side2}, the car was moved next to the fence hazard and the following input commands were given - "d,d,d". This shows how the car's movement is restricted if it would collide sideways with an obstacle.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_side}
+	\caption{Attempting to move to the left next to an obstacle}
+	\label{fig:collision_test_side} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.63\paperwidth]{images/collision_test_side2}
+	\caption{Attempting to move to the right next to an obstacle}
+	\label{fig:collision_test_side2} 
+	\end{center}
+\end{figure}
 
 \clearpage
 
@@ -962,6 +1125,43 @@ The car is kept at a constant speed of 10 for three seconds. Figures \ref{fig:fu
 %	GAME OVER DIALOGUE
 %----------------------------------------------------------------------------------------
 \section{Game Over Dialogue}
+The game over dialogue is given when the player has either won the game by crossing the finish line or lost by crashing into an obstacle or running out of fuel. 
+
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// zombiemountain.h
+	bool game_over_loss;
+\end{lstlisting}
+Represents if the game was over either through a loss (true) or win (false).
+\newline
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_over_screen();
+\end{lstlisting}
+Will change to the highscore screen if the user presses any key. Will also do some work if the user has a new highscore (explained in the section \emph{Part B - Highscore Screen}).
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void draw_game_over_screen();
+\end{lstlisting}
+Will draw the to the screen a prompt saying if the player won or los as well as the score achieved. 
+\newline
+
+\subsection*{Testing}
+\subsubsection*{Game over screens for win and loss}
+Figures \ref{fig:finishline_test_win} and \ref{fig:finishline_test_win2} show the appearance of the game over screen when a player wins the game.
+\newline
+Figures \ref{fig:collision_test_headon_depot} and \ref{fig:collision_test_headon_depot2} show the resulting game over screen for when the player loses the game through any of the methods specified in the introduction of this section.
+\newline
+Figure \ref{fig:gameover_test_playagain} shows that the player can restart the game by pressing "p" or "s".
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/gameover_test_playagain}
+	\caption{The highscore screen which shows how the player can restart the game}
+	\label{fig:gameover_test_playagain} 
+	\end{center}
+\end{figure}
 
 \clearpage
 
@@ -969,16 +1169,148 @@ The car is kept at a constant speed of 10 for three seconds. Figures \ref{fig:fu
 %	PARTB
 %----------------------------------------------------------------------------------------
 \section{Part B - Highscore Screen}
+The extension to my game is a highscore table. The top 100 highscores will be stored in a file called \emph{highscores} located in the game's directory. Whenever the player finished the game (by win or loss), if their score is high enough to be in the top 100, they will be prompted to type their name and their score will be added to the table.
+\newline
+The number of scores that can be show is dependant on the size of the screen. Up to 100 scores can be shown in the highscore screen. 
+\newline
+If the players chooses to not type anything when prompted for their name, \emph{Anonymous} will be written as the holder of that score. The player \emph{GameMaster} will always be shown to have 1000 points and provides the incentive for the player to take the number 1 spot.
 
+\subsection*{Globals}
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	#define MAX_SCORES      100
+\end{lstlisting}
+The maximum number of scores we can display.
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	#define MAX_NAME_SIZE   12
+\end{lstlisting}
+The maximum number of characters a name can have.
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	int score;
+\end{lstlisting}
+The score the player has achieved.
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	char hscore_names[MAX_SCORES][MAX_NAME_SIZE+1];
+\end{lstlisting}
+The names of the top 100 playes are parsed from the \emph{highscores} file to this array
+\begin{lstlisting}[style=CStyle]
+	// hscore.h
+	int hscore_scores[MAX_SCORES];
+\end{lstlisting}
+The scores of the top 100 playes are parsed from the \emph{highscores} file to this array
+\newpage
+
+\subsection*{Functions}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void draw_highscore_screen();
+\end{lstlisting}
+Draws the title of the screen and the prompts which ask the play what to do next. Will call \emph{draw\_hscores} to draw the highscore table.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	void draw_hscores();
+\end{lstlisting}
+Draw the highscore table by deciding how many entries can be displayed on the screen. 
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_highscore_screen();
+\end{lstlisting}
+Will change the game state to either the game, start or exit screen depending on the key pressed by the user.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	void get_hscores();
+\end{lstlisting}
+Parses all of the data in the \emph{highscores} file and adds them to the appropriate arrays. Closes the connection to the file after.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	void sort_scores();
+\end{lstlisting}
+Sorts the highscore table in descending order. Needed as \emph{process\_hscore()} add the new entry to the bottom of the table.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	void process_hscore(char *name);
+\end{lstlisting}
+Add the current value of the \emph{score} variable to the highscore table under the name passed to the function. Also removes the lowest score if the table is already full with 100 highscores.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	bool check_new_hscore();
+\end{lstlisting}
+Checks if there is a free spot on the highscore table or if the current score is higher than the lowest score in the table.
+\begin{lstlisting}[style=CStyle]
+	// hscore.c
+	void save_scores();
+\end{lstlisting}
+Saves the highscore data from the arrays to the \emph{highscores} file in the format \emph{NAME SCORE newline}
+\begin{lstlisting}[style=CStyle]
+	// main.c
+	void update_game_over_screen();
+\end{lstlisting}
+If there is a new highscore, it'll get the characters the user presses and add that to the name to be passed to the \emph{process\_hscore(name)} function. After the user presses \emph{ENTER}, the screen is changed to the highscore screen and the score is sent to be processed. 
+
+\newpage
+\subsection*{Testing}
+\subsubsection*{Score is added with the right name}
+The key "p" is pressed straight after the screen in \ref{fig:gameover_test_playagain} is displayed. After a full winning run of the game, the score earned is displayed in Figure \ref{fig:hscore_test_name}. The characters typed straight after this screen is shown is "NameTestENTER". Figure \ref{fig:hscore_test_name2} shows that the score and name were entered correctly and in the right location.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_name}
+	\caption{The score after winning the game}
+	\label{fig:hscore_test_name} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_name2}
+	\caption{The score and name are displayed correctly and in the right order}
+	\label{fig:hscore_test_name2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Score is added with no name typed}
+The same setup was done as the previous test. However in the screen show in Figure \ref{fig:hscore_test_noname}, only ENTER was pressed. Figure \ref{fig:hscore_test_noname2} shows that the score earned beforehand of 873 is now in the table under the name "Anonymous".
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_noname}
+	\caption{The score after winning the game}
+	\label{fig:hscore_test_noname} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_noname2}
+	\caption{The score and "Anonymous" are displayed correctly and in the right order}
+	\label{fig:hscore_test_noname2} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{Highscore screen works with multiple screen sizes}
+We've already seen the highscore table works with a screen size of 100x30.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_80x24}
+	\caption{Screen size of 80x24}
+	\label{fig:hscore_test_80x24} 
+	\end{center}
+\end{figure}
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.6\paperwidth]{images/hscore_test_270x70}
+	\caption{Screen size of 270x70}
+	\label{fig:hscore_test_270x70} 
+	\end{center}
+\end{figure}
+\newpage
+\subsubsection*{File correctly represents what is shown}
+This test verifies that everything is being written to the files properly and that the arrays correctly hold the data from the file.If we compare what is shown in Figure \ref{fig:hscore_test_noname2} with Figure \ref{fig:hscore_test_file}, we can see that the \emph{highscores} file correctly represents what is shown on the screen and vice versa.
+\begin{figure}[!ht]
+	\begin{center}
+	\includegraphics[width=0.22\paperwidth]{images/hscore_test_file}
+	\caption{The contents in \emph{highscores}}
+	\label{fig:hscore_test_file} 
+	\end{center}
+\end{figure}
 \clearpage
-
-
-
-%----------------------------------------------------------------------------------------
-%	REFERENCES
-%----------------------------------------------------------------------------------------
-\section{References}
-
-\clearpage
-
 \end{document}
